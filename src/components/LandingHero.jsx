@@ -6,27 +6,18 @@ import { ChevronDown } from 'lucide-react'
 function Grain() {
   return (
     <div
-      className="pointer-events-none absolute inset-0 opacity-[0.07] mix-blend-soft-light"
+      className="pointer-events-none absolute inset-0 opacity-[0.04] mix-blend-soft-light"
       style={{ backgroundImage: 'url(https://images.unsplash.com/photo-1760764541302-e3955fbc6b2b?ixid=M3w3OTkxMTl8MHwxfHNlYXJjaHwxfHxjZXJhbWljJTIwcG90dGVyeSUyMGhhbmRtYWRlfGVufDB8MHx8fDE3NjM0MTE5NzJ8MA&ixlib=rb-4.1.0&w=1600&auto=format&fit=crop&q=80)' }}
     />
   )
 }
 
-function TexturePaper() {
-  return (
-    <div
-      className="pointer-events-none absolute inset-0 opacity-[0.05]"
-      style={{ backgroundImage: 'url(https://images.unsplash.com/photo-1524638431109-93d95c968f03?auto=format&fit=crop&w=1200&q=60)', backgroundSize: 'cover', backgroundPosition: 'center' }}
-    />
-  )
-}
-
-function Embers({ count = 5, intensity = 1 }) {
+function Embers({ count = 4, intensity = 0.9 }) {
   const particles = useMemo(() => Array.from({ length: count }).map((_, i) => ({
     id: i,
-    left: 10 + (i * (80 / count)) + (i % 2 ? 5 : 0),
-    size: 4 + (i % 3) * 2,
-    delay: i * 0.6,
+    left: 8 + (i * (84 / count)) + (i % 2 ? 6 : 0),
+    size: 3 + (i % 3) * 2,
+    delay: i * 0.55,
   })), [count])
   return (
     <div className="pointer-events-none absolute inset-0">
@@ -36,7 +27,7 @@ function Embers({ count = 5, intensity = 1 }) {
           className="absolute rounded-full"
           style={{ left: `${p.left}%`, bottom: '6%' }}
           initial={{ y: 0, opacity: 0 }}
-          animate={{ y: -160 * intensity, opacity: [0, 1, 0] }}
+          animate={{ y: -160 * intensity, opacity: [0, 0.9, 0] }}
           transition={{ duration: 7, repeat: Infinity, ease: 'easeInOut', delay: p.delay }}
         >
           <div
@@ -54,7 +45,7 @@ function Embers({ count = 5, intensity = 1 }) {
   )
 }
 
-function Smoke({ opacity = 0.3 }) {
+function Smoke({ opacity = 0.25 }) {
   return (
     <div className="pointer-events-none absolute inset-0 overflow-hidden">
       <motion.div
@@ -105,7 +96,6 @@ export default function LandingHero({ onDone }) {
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'auto' })
     const t = setTimeout(() => setShowPrompt(true), 3000)
-    // Arm the final ink-bleed only after user has time to read the quote
     const arm = setTimeout(() => setAllowBleed(true), 2500)
     return () => { clearTimeout(t); clearTimeout(arm) }
   }, [])
@@ -133,7 +123,6 @@ export default function LandingHero({ onDone }) {
     }
 
     const onWheel = (e) => {
-      // Only intercept while hero is on screen
       const heroRect = node.getBoundingClientRect()
       const heroOnScreen = heroRect.bottom > 0 && heroRect.top < window.innerHeight
       if (!heroOnScreen) return
@@ -168,21 +157,32 @@ export default function LandingHero({ onDone }) {
     }, 1200)
   }
 
-  // Direct jump to constellation (for top-right action)
+  // Direct jump to constellation (top-right action)
   const handleBrowseSins = () => {
     const target = document.getElementById('constellation')
     onDone && onDone()
     if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
 
-  // Only arm the bleed when the final screen is actually in view
   const s5InView = useInView(s5Ref, { amount: 0.6 })
 
-  // Parallax for split ELANOR on screen 2 (vertical cut: left/right halves)
+  // Screen 2: timeline for red line animation
+  const [phase, setPhase] = useState('mono') // mono -> vline -> hline -> copy
+  useEffect(() => {
+    if (!s2Ref.current) return
+    let t1, t2
+    // monogram appears immediately, after 1.5s show vertical line
+    t1 = setTimeout(() => setPhase('vline'), 1500)
+    // after vertical cut finishes + pause, switch to horizontal divider then copy
+    t2 = setTimeout(() => setPhase('hline'), 1500 + 1000 + 500)
+    const t3 = setTimeout(() => setPhase('copy'), 1500 + 1000 + 500 + 400)
+    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3) }
+  }, [])
+
+  // Parallax for subtle drift on scroll (fade + drift up when leaving)
   const { scrollYProgress: s2Progress } = useScroll({ target: s2Ref, offset: ['start end', 'end start'] })
-  const xLeft = useTransform(s2Progress, [0, 1], [0, -28])
-  const xRight = useTransform(s2Progress, [0, 1], [0, 28])
-  const seamGlowOpacity = useTransform(s2Progress, [0, 0.4, 1], [0, 0.8, 0.2])
+  const driftY = useTransform(s2Progress, [0, 1], [0, -30])
+  const fadeOut = useTransform(s2Progress, [0, 0.8, 1], [1, 0.5, 0])
 
   return (
     <div ref={heroRef} className="relative w-full text-white bg-black">
@@ -197,9 +197,9 @@ export default function LandingHero({ onDone }) {
       </div>
 
       {/* Screen 1: The Void Entry */}
-      <section ref={s1Ref} className="relative min-h-screen flex items-center justify-center overflow-hidden">
+      <section ref={s1Ref} className="relative min-h-screen flex items-center justify-center overflow-hidden bg-black">
         <Grain />
-        <Embers count={5} />
+        <Embers count={4} intensity={0.8} />
         <motion.h1
           className="text-center font-[Cinzel] leading-tight px-6 font-semibold"
           initial={{ opacity: 0, y: 8 }}
@@ -211,124 +211,207 @@ export default function LandingHero({ onDone }) {
         {showPrompt && <ScrollPrompt label="Descend" onClick={() => scrollTo(s2Ref)} />}
       </section>
 
-      {/* Screen 2: The Revelation (Revised) */}
-      <section ref={s2Ref} className="relative min-h-screen grid place-items-center overflow-hidden">
+      {/* Screen 2: The Brand Reveal (Revised with red line animation) */}
+      <section ref={s2Ref} className="relative min-h-screen grid place-items-center overflow-hidden bg-black">
         <Grain />
-        <Embers count={4} intensity={0.8} />
-        <div className="relative w-full max-w-[1200px] mx-auto px-6 text-center select-none">
-          {/* Split ELANOR vertical parallax with red seam */}
+        <Embers count={3} intensity={0.6} />
+
+        <motion.div style={{ y: driftY, opacity: fadeOut }} className="relative w-full max-w-[1200px] mx-auto px-6 text-center select-none">
+          {/* ELANOR monogram */}
           <div className="relative inline-block">
-            {/* Left half */}
-            <motion.div style={{ x: xLeft }} className="relative inline-block align-top overflow-hidden">
-              <div style={{ clipPath: 'inset(0 50% 0 0)' }}>
-                <StaggerMonogram />
-              </div>
-            </motion.div>
-            {/* Seam glow */}
-            <motion.div
-              aria-hidden
-              className="absolute top-1/2 -translate-y-1/2 left-1/2 -translate-x-1/2 h-[110%] w-[3px]"
-              style={{ background: 'linear-gradient(to bottom, transparent, rgba(196,30,58,0.9), transparent)', boxShadow: '0 0 28px rgba(196,30,58,0.6)', opacity: seamGlowOpacity }}
-            />
-            {/* Right half */}
-            <motion.div style={{ x: xRight }} className="relative inline-block align-top overflow-hidden">
-              <div style={{ clipPath: 'inset(0 0 0 50%)' }}>
-                <StaggerMonogram />
-              </div>
-            </motion.div>
+            <StaggerMonogram visible={true} />
+
+            {/* Vertical red line cutting down */}
+            <AnimatePresence>
+              {phase === 'vline' && (
+                <motion.div
+                  key="vline"
+                  className="absolute left-1/2 -translate-x-1/2 top-0 w-[2px]"
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: '100%', opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 1.0, ease: [0.22, 1, 0.36, 1] }}
+                  style={{ background: 'linear-gradient(to bottom, rgba(196,30,58,0), rgba(196,30,58,0.95), rgba(196,30,58,0))', boxShadow: '0 0 18px rgba(196,30,58,0.6)' }}
+                />
+              )}
+            </AnimatePresence>
+
+            {/* Horizontal divider expansion */}
+            <AnimatePresence>
+              {(phase === 'hline' || phase === 'copy') && (
+                <motion.div
+                  key="hline"
+                  className="absolute left-1/2 -translate-x-1/2 top-full mt-6 h-[2px]"
+                  initial={{ width: 0, opacity: 0 }}
+                  animate={{ width: '72%', opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.6, ease: 'easeOut' }}
+                  style={{ background: 'linear-gradient(to right, rgba(196,30,58,0), rgba(196,30,58,0.9), rgba(196,30,58,0))', boxShadow: '0 0 16px rgba(196,30,58,0.45)' }}
+                />
+              )}
+            </AnimatePresence>
           </div>
 
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, amount: 0.6 }}
-            transition={{ delay: 1.0, duration: 0.8 }}
-            className="mt-6"
-          >
-            <p className="text-zinc-200 italic font-semibold" style={{ fontSize: 'clamp(22px, 3.5vw, 36px)' }}>
-              Wear your sin. Feel no guilt.
-            </p>
-            <InkUnderline />
-          </motion.div>
-        </div>
+          {/* Copy below divider */}
+          <AnimatePresence>
+            {phase === 'copy' && (
+              <motion.div key="copy" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }} className="mt-10">
+                <p className="text-zinc-200 italic font-semibold" style={{ fontSize: 'clamp(22px, 3.5vw, 36px)' }}>
+                  Seven scents. Seven temptations. Unapologetically yours.
+                </p>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </motion.div>
+
         <ScrollPrompt label="Descend into temptation" onClick={() => scrollTo(s3Ref)} />
       </section>
 
-      {/* Screen 3: The Manifesto (Revised) */}
+      {/* Screen 3: Brand Introduction (Revised) */}
       <section ref={s3Ref} className="relative min-h-screen flex items-center justify-center overflow-hidden">
-        <Grain />
-        <div className="absolute inset-0" style={{ background: 'radial-gradient(circle at 50% 100%, rgba(139,0,0,0.08), transparent 60%)' }} />
-        <Smoke opacity={0.3} />
-        <div className="px-8 max-w-4xl text-center">
-          <Manifesto />
+        {/* Subtle gradient from black to deep burgundy */}
+        <div className="absolute inset-0" style={{ background: 'radial-gradient(120% 120% at 50% 100%, rgba(139,0,0,0.15), rgba(0,0,0,1) 60%)' }} />
+        {/* Ink wash texture behind text */}
+        <div className="absolute inset-0 opacity-[0.1]" style={{ backgroundImage: 'url(https://images.unsplash.com/photo-1524638431109-93d95c968f03?auto=format&fit=crop&w=1200&q=60)', backgroundSize: 'cover', backgroundPosition: 'center' }} />
+        <Embers count={2} intensity={0.4} />
+
+        <div className="px-8 max-w-4xl text-center relative">
+          <motion.h2
+            className="font-[Cinzel] font-semibold"
+            style={{ fontSize: 'clamp(36px,5vw,48px)' }}
+            initial={{ opacity: 0, y: 8 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, amount: 0.6 }}
+            transition={{ duration: 0.6 }}
+          >
+            What is Elanor?
+          </motion.h2>
+          <motion.div
+            initial={{ opacity: 0, filter: 'blur(3px)' }}
+            whileInView={{ opacity: 1, filter: 'blur(0px)' }}
+            viewport={{ once: true, amount: 0.6 }}
+            transition={{ duration: 0.8, delay: 0.2 }}
+            className="mt-6 space-y-5"
+          >
+            <p className="font-[Cormorant_Garamond] text-zinc-200 font-semibold" style={{ fontSize: 'clamp(20px,3.4vw,28px)' }}>
+              A niche perfume house crafting fragrances based on the seven deadly sins. Each scent captures the raw emotion of its sin—WRATH channels fury and fire, ENVY embodies toxic desire, LUST is unfiltered seduction.
+            </p>
+            <p className="font-[Cormorant_Garamond] text-zinc-200 font-semibold" style={{ fontSize: 'clamp(20px,3.4vw,28px)' }}>
+              Limited batches. Hand-blended compositions. No apologies.
+            </p>
+          </motion.div>
         </div>
         <ScrollPrompt onClick={() => scrollTo(s4Ref)} />
       </section>
 
-      {/* Screen 4: The Philosophy */}
-      <section ref={s4Ref} className="relative min-h-screen flex items-center justify-center overflow-hidden">
+      {/* Screen 4: The Concept (Simplified) */}
+      <section ref={s4Ref} className="relative min-h-screen grid place-items-center overflow-hidden">
         <Grain />
-        <TexturePaper />
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-10 md:gap-16 px-8 max-w-6xl">
-          <PhilosophyCard
-            title="Craftsmanship"
-            items={[
-              'Hand-blended in micro-batches',
-              'Aged 30 days before bottling',
-              '20% perfume oil concentration',
-            ]}
-            Icon={IconChalice}
-          />
-          <PhilosophyCard
-            title="Philosophy"
-            items={[
-              'Niche fragrances for collectors',
-              'Dark, complex, unapologetic',
-              'Storytelling through scent',
-            ]}
-            Icon={IconCrownedSkull}
-          />
-          <PhilosophyCard
-            title="Exclusivity"
-            items={[
-              'Limited production runs',
-              'Each batch numbered',
-              "Collector's piece packaging",
-            ]}
-            Icon={IconCagedFlame}
-          />
-        </div>
-        <ScrollPrompt onClick={() => scrollTo(s5Ref)} />
-      </section>
-
-      {/* Screen 5: The Transition */}
-      <section ref={s5Ref} className="relative min-h-screen grid place-items-center overflow-hidden">
-        <Grain />
-        <Embers count={7} intensity={1.2} />
-        <Smoke opacity={0.4} />
-        <div className="text-center px-6">
+        <div className="text-center px-8 max-w-5xl">
           <motion.blockquote
-            initial={{ opacity: 0, y: 10 }}
+            initial={{ opacity: 0, y: 12 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, amount: 0.6 }}
-            transition={{ duration: 0.8 }}
-            className="text-[clamp(28px,5vw,48px)] font-[Cormorant_Garamond] italic font-semibold"
+            transition={{ duration: 0.7 }}
+            className="font-[Cormorant_Garamond] italic font-semibold"
+            style={{ fontSize: 'clamp(32px,6vw,56px)' }}
           >
-            <span className="text-[#C41E3A]">“</span>Sin is honest. These fragrances are truth.<span className="text-[#C41E3A]">”</span>
+            Fragrance as confession.
           </motion.blockquote>
           <motion.p
             initial={{ opacity: 0 }}
             whileInView={{ opacity: 1 }}
             viewport={{ once: true, amount: 0.6 }}
-            transition={{ delay: 2, duration: 0.8 }}
-            className="mt-6 text-[clamp(18px,3vw,32px)] font-semibold"
+            transition={{ delay: 0.6, duration: 0.7 }}
+            className="mt-4 text-zinc-200"
+            style={{ fontSize: 'clamp(18px,3.5vw,24px)' }}
           >
-            Choose your sin...
+            Every scent tells the truth others hide. Wear your darkness proudly.
+          </motion.p>
+
+          {/* Optional alternate concept list for clarity */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            whileInView={{ opacity: 1 }}
+            viewport={{ once: true, amount: 0.4 }}
+            transition={{ delay: 1.0, duration: 0.7 }}
+            className="mt-10 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-left"
+          >
+            {[
+              ['WRATH', 'Leather, incense, controlled violence'],
+              ['ENVY', 'Green vetiver, bitter obsession, toxic desire'],
+              ['LUST', 'Primal musk, bleeding roses, raw hunger'],
+              ['GREED', 'Hoarded amber, molten gold, insatiable'],
+              ['GLUTTONY', 'Rum-soaked excess, caramelized indulgence'],
+              ['SLOTH', 'Opiate florals, surrendered stillness'],
+              ['PRIDE', 'Regal leather, burning wood, crowned in jasmine'],
+            ].map(([name, desc]) => (
+              <div key={name} className="rounded-md/20 p-4 border border-zinc-800/60 bg-black/20">
+                <div className="text-sm tracking-wider uppercase text-zinc-400 font-semibold">{name}</div>
+                <div className="mt-1 text-zinc-200 font-semibold" style={{ fontSize: 'clamp(14px,2.8vw,18px)' }}>{desc}</div>
+              </div>
+            ))}
+          </motion.div>
+        </div>
+        <ScrollPrompt onClick={() => scrollTo(s5Ref)} />
+      </section>
+
+      {/* Screen 5: Craftsmanship (Keep, slightly revised) */}
+      <section ref={s5Ref} className="relative min-h-screen flex items-center justify-center overflow-hidden">
+        <Grain />
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-10 md:gap-16 px-8 max-w-6xl">
+          <CraftCol
+            icon={<IconChalice />}
+            lines={[
+              'Hand-blended micro-batches',
+              '20% perfume oil concentration',
+            ]}
+          />
+          <CraftCol
+            icon={<IconNumberedBottle />}
+            lines={[
+              'Limited production',
+              'Each batch numbered',
+            ]}
+          />
+          <CraftCol
+            icon={<IconOrnateBottle />}
+            lines={[
+              "Collector's packaging",
+              'Luxury without compromise',
+            ]}
+          />
+        </div>
+        <ScrollPrompt label="Descend" onClick={() => scrollTo(s5Ref)} />
+      </section>
+
+      {/* Screen 6: The Transition (Simplified) */}
+      <section className="relative min-h-screen grid place-items-center overflow-hidden bg-black">
+        <Embers count={10} intensity={1.4} />
+        <Smoke opacity={0.5} />
+        <div className="text-center px-6">
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.8 }}
+            className="font-[Cinzel] font-semibold"
+            style={{ fontSize: 'clamp(28px,5vw,48px)' }}
+          >
+            Which sin will you claim?
+          </motion.p>
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 1.5, duration: 0.8 }}
+            className="mt-3 text-zinc-300"
+            style={{ fontSize: 'clamp(18px,4vw,32px)' }}
+          >
+            Scroll to choose...
           </motion.p>
         </div>
 
-        {/* Ink bleed screen split */}
-        <InkBleedTrigger active={allowBleed && s5InView} onComplete={handleFinalSplit} />
+        {/* Ink bleed wipe revealing constellation */}
+        <InkBleedTrigger active={allowBleed} onComplete={handleFinalSplit} />
       </section>
     </div>
   )
@@ -356,16 +439,15 @@ function Typewriter({ text }) {
   )
 }
 
-function StaggerMonogram() {
+function StaggerMonogram({ visible = true }) {
   const letters = 'ELANOR'.split('')
   return (
     <div className="font-[Cinzel] tracking-[0.18em] leading-none" style={{ fontSize: 'clamp(140px, 14vw, 180px)' }}>
-      {letters.map((ch, i) => (
+      {visible && letters.map((ch, i) => (
         <motion.span
           key={i}
           initial={{ opacity: 0, y: 8, filter: 'blur(4px)' }}
-          whileInView={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-          viewport={{ once: true, amount: 0.6 }}
+          animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
           transition={{ delay: i * 0.12, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
           style={{
             display: 'inline-block',
@@ -382,72 +464,6 @@ function StaggerMonogram() {
   )
 }
 
-function InkUnderline() {
-  return (
-    <motion.svg width="420" height="30" viewBox="0 0 420 30" className="mx-auto mt-4">
-      <motion.path
-        d="M10 15 C 110 25, 210 5, 410 15"
-        fill="none"
-        stroke="rgba(196,30,58,0.85)"
-        strokeWidth="2"
-        initial={{ pathLength: 0 }}
-        whileInView={{ pathLength: 1 }}
-        viewport={{ once: true }}
-        transition={{ duration: 1.2, ease: 'easeInOut' }}
-        strokeLinecap="round"
-      />
-    </motion.svg>
-  )
-}
-
-function Manifesto() {
-  const lines = [
-    'What does sin smell like?',
-    'WRATH is leather and fury. ENVY is poison-green obsession. LUST is raw, unapologetic desire.',
-    "Each fragrance captures the feeling—the guilty pleasure of embracing what you're told to resist.",
-  ]
-  return (
-    <div className="space-y-6">
-      {lines.map((l, i) => (
-        <motion.p
-          key={i}
-          className="font-[Cormorant_Garamond] text-zinc-200 font-semibold"
-          style={{ fontSize: 'clamp(24px, 3.2vw, 32px)', letterSpacing: '0.02em' }}
-          initial={{ opacity: 0, y: 12, filter: 'blur(2px)' }}
-          whileInView={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-          viewport={{ once: true, amount: 0.6 }}
-          transition={{ delay: i * 0.7, duration: 0.7 }}
-        >
-          {l}
-        </motion.p>
-      ))}
-    </div>
-  )
-}
-
-function PhilosophyCard({ title, items, Icon }) {
-  const ref = useRef(null)
-  const inView = useInView(ref, { once: true, amount: 0.4 })
-  return (
-    <motion.div
-      ref={ref}
-      initial={{ opacity: 0, y: 20 }}
-      animate={inView ? { opacity: 1, y: 0 } : {}}
-      transition={{ duration: 0.8 }}
-      className="text-center"
-    >
-      <div className="flex justify-center mb-4">
-        <Icon />
-      </div>
-      <h3 className="font-[Josefin_Sans] text-[18px] tracking-[0.2em] uppercase mb-3 font-semibold">{title}</h3>
-      <ul className="font-[Josefin_Sans] text-[14px] text-zinc-200 space-y-2 font-semibold">
-        {items.map((it, idx) => (<li key={idx}>{it}</li>))}
-      </ul>
-    </motion.div>
-  )
-}
-
-// Minimal hatched icons
 function IconChalice() {
   return (
     <svg width="64" height="64" viewBox="0 0 64 64" className="text-[#C41E3A]">
@@ -458,26 +474,47 @@ function IconChalice() {
     </svg>
   )
 }
-function IconCrownedSkull() {
+function IconNumberedBottle() {
   return (
     <svg width="64" height="64" viewBox="0 0 64 64" className="text-[#C41E3A]">
       <g fill="none" stroke="currentColor" strokeWidth="1.5">
-        <path d="M16 26a16 16 0 1 1 32 0c0 6-3 10-7 12-1 .6-2 1.7-2 2.8L38 46H26l-1-5.2c0-1.1-1-2.2-2-2.8-4-2-7-6-7-12z" />
-        <path d="M24 22c0 3 2 4 4 4s4-1 4-4M40 22c0 3-2 4-4 4s-4-1-4-4" />
-        <path d="M22 12l4 4 6-6 6 6 4-4" />
+        <rect x="20" y="18" width="24" height="34" rx="4" />
+        <path d="M26 18v-4h12v4" />
+        <path d="M24 30h16" strokeOpacity="0.6" />
+        <path d="M24 36h16" strokeOpacity="0.6" />
+        <text x="32" y="50" textAnchor="middle" fontSize="10" fill="currentColor">№</text>
       </g>
     </svg>
   )
 }
-function IconCagedFlame() {
+function IconOrnateBottle() {
   return (
     <svg width="64" height="64" viewBox="0 0 64 64" className="text-[#C41E3A]">
       <g fill="none" stroke="currentColor" strokeWidth="1.5">
-        <rect x="16" y="12" width="32" height="40" rx="4" />
-        <path d="M32 44c6-4 6-10 2-14-2 4-6 4-6 10 0 2 2 4 4 4z" />
-        <path d="M22 12v40M42 12v40" strokeOpacity="0.6" />
+        <path d="M24 22h16l4 12-12 18L20 34z" />
+        <path d="M30 18h4v4h-4z" />
+        <path d="M20 34h24" strokeOpacity="0.6" />
       </g>
     </svg>
+  )
+}
+
+function CraftCol({ icon, lines }) {
+  const ref = useRef(null)
+  const inView = useInView(ref, { once: true, amount: 0.4 })
+  return (
+    <motion.div
+      ref={ref}
+      initial={{ opacity: 0, y: 20 }}
+      animate={inView ? { opacity: 1, y: 0 } : {}}
+      transition={{ duration: 0.8 }}
+      className="text-center"
+    >
+      <div className="flex justify-center mb-4">{icon}</div>
+      <ul className="font-[Josefin_Sans] text-[14px] text-zinc-200 space-y-2 font-semibold">
+        {lines.map((it, idx) => (<li key={idx}>{it}</li>))}
+      </ul>
+    </motion.div>
   )
 }
 
