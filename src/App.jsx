@@ -3,6 +3,7 @@ import OpeningRitual from './components/OpeningRitual'
 import Hero from './components/Hero'
 import Philosophy from './components/Philosophy'
 import SinsPreview from './components/SinsPreview'
+import Wrath from './components/Wrath'
 
 function App() {
   const [entered, setEntered] = useState(false)
@@ -10,6 +11,9 @@ function App() {
   return (
     <div className="bg-black text-white min-h-screen font-[Lora]">
       {!entered && <OpeningRitual onEnter={() => setEntered(true)} />}
+
+      {/* Product top section (hero zone) */}
+      <Wrath />
 
       {/* Main Experience */}
       <Hero />
