@@ -98,13 +98,18 @@ export default function LandingHero({ onDone }) {
   const s5Ref = useRef(null)
 
   const [showPrompt, setShowPrompt] = useState(false)
+  const [allowBleed, setAllowBleed] = useState(false)
 
+  // Ensure we start at the very top and avoid browser restoring deep scroll
   useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'auto' })
     const t = setTimeout(() => setShowPrompt(true), 3000)
-    return () => clearTimeout(t)
+    // Arm the final ink-bleed only after user has time to read the quote
+    const arm = setTimeout(() => setAllowBleed(true), 2500)
+    return () => { clearTimeout(t); clearTimeout(arm) }
   }, [])
 
-  const scrollTo = (ref) => ref?.current?.scrollIntoView({ behavior: 'smooth' })
+  const scrollTo = (ref) => ref?.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 
   // Final wipe to constellation
   const [wiping, setWiping] = useState(false)
@@ -231,7 +236,7 @@ export default function LandingHero({ onDone }) {
         </div>
 
         {/* Ink bleed screen split */}
-        <InkBleedTrigger active={true} onComplete={handleFinalSplit} />
+        <InkBleedTrigger active={allowBleed} onComplete={handleFinalSplit} />
       </section>
     </div>
   )

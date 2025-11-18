@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import LandingHero from './components/LandingHero'
 import LandingIntro from './components/LandingIntro'
 import SinsConstellation from './components/SinsConstellation'
@@ -7,6 +7,15 @@ import SinModule from './components/SinModule'
 function App() {
   const [entered, setEntered] = useState(false)
 
+  // Prevent hash-jump to deep sections before the opening experience completes
+  useEffect(() => {
+    const hash = window.location.hash
+    if (!entered && hash && (hash.startsWith('#sin-') || hash === '#constellation')) {
+      history.replaceState(null, '', window.location.pathname + window.location.search)
+      window.scrollTo({ top: 0, behavior: 'auto' })
+    }
+  }, [entered])
+
   const handleSelectSin = (key) => {
     const el = document.getElementById(`sin-${key}`)
     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
@@ -14,7 +23,7 @@ function App() {
 
   return (
     <div className="bg-black text-white min-h-screen font-[Lora]">
-      {/* Opening experience */}
+      {/* Opening experience overlay */}
       {!entered && <LandingHero onDone={() => setEntered(true)} />}
 
       {/* Section 1: Brand Introduction split reveal */}
@@ -31,12 +40,12 @@ function App() {
           family="Oriental Leather"
           notes={["Leather", "Blood Orange", "Smoldering Incense"]}
           myth="Wrath channels Ares, god of war—each spray is armor for battle."
-          poem={[
+          poem=[
             'Steel in the pulse, ember in the throat,',
             'the night bends its knee to you.',
             'Smoke crowns your hunger as cities sleep,',
             'and you walk through the world unafraid.'
-          ]}
+          ]
         />
       </div>
 
@@ -47,10 +56,10 @@ function App() {
           family="Green Chypre"
           notes={["Serpentine Vetiver", "Bitter Absinthe", "Ivy"]}
           myth="Envy coils like a whispered promise—emerald, cool, inevitable."
-          poem={[
+          poem=[
             'A garden behind glass, untouched, unreal,',
             'vine and shadow learning your name.',
-          ]}
+          ]
         />
       </div>
 
@@ -61,10 +70,10 @@ function App() {
           family="Gourmand Floral"
           notes={["Red Roses", "Primal Musk", "Dark Chocolate"]}
           myth="Lust wears the night like silk and speaks in the language of heat."
-          poem={[
+          poem=[
             'The mouth remembers what the mind forgets,',
             'sugar on skin, velvet on breath.',
-          ]}
+          ]
         />
       </div>
 
