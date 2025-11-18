@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { motion, AnimatePresence, useAnimation } from 'framer-motion'
 import { ChevronDown } from 'lucide-react'
 
@@ -12,6 +12,33 @@ function Grain() {
   )
 }
 
+function normalizeImageUrl(url) {
+  if (!url) return url
+  try {
+    const u = new URL(url)
+    // Google Drive viewer/share links → force direct download stream (works for images)
+    if (u.hostname.includes('drive.google.com')) {
+      // Patterns: /file/d/<id>/view?..., or ...uc?export=view&id=<id>
+      let id = u.searchParams.get('id')
+      if (!id) {
+        const parts = u.pathname.split('/')
+        const idx = parts.indexOf('d')
+        if (idx !== -1 && parts[idx + 1]) id = parts[idx + 1]
+      }
+      if (id) {
+        return `https://drive.google.com/uc?export=download&id=${id}`
+      }
+    }
+    // Dropbox share → force raw
+    if (u.hostname.includes('dropbox.com')) {
+      u.searchParams.set('raw', '1')
+      u.searchParams.set('dl', '1')
+      return u.toString()
+    }
+  } catch (_) {}
+  return url
+}
+
 export default function LandingHero({ onDone, heroImageUrl }) {
   const fullText = 'Ready to indulge in sin?'
   const [text, setText] = useState('')
@@ -21,7 +48,8 @@ export default function LandingHero({ onDone, heroImageUrl }) {
 
   // Optional override via env var
   const envHero = import.meta.env.VITE_HERO_IMAGE_URL
-  const heroSrc = heroImageUrl || envHero || null
+  const heroSrcRaw = heroImageUrl || envHero || null
+  const heroSrc = normalizeImageUrl(heroSrcRaw)
 
   // Blink cursor
   useEffect(() => {
@@ -105,7 +133,7 @@ export default function LandingHero({ onDone, heroImageUrl }) {
         style={{ background: 'radial-gradient(ellipse at center, rgba(0,0,0,0) 0%, rgba(0,0,0,0) 60%, rgba(0,0,0,0.25) 100%)' }}
       >
         <div className="absolute inset-0 grid place-items-center">
-          {heroSrc ? <HeroImage src={heroSrc} /> : <SkullIllustration />}
+          {heroSrc ? <HeroImageWithFallback src={heroSrc} /> : <SkullIllustration />}
         </div>
       </motion.div>
 
@@ -124,18 +152,21 @@ export default function LandingHero({ onDone, heroImageUrl }) {
   )
 }
 
-function HeroImage({ src }) {
+function HeroImageWithFallback({ src }) {
+  const [errored, setErrored] = useState(false)
+
+  if (errored) return <SkullIllustration />
+
   // Supports SVG/PNG/WebP. SVG remains crisp; raster scales responsively.
   return (
     <img
       src={src}
       alt="ELANOR mark"
+      referrerPolicy="no-referrer"
+      crossOrigin="anonymous"
       className="max-w-[70vw] w-[560px] md:w-[640px] h-auto select-none drop-shadow-[0_0_50px_rgba(139,0,0,0.35)]"
       style={{ filter: 'saturate(0.9) contrast(1.02)' }}
-      onError={(e) => {
-        // Fallback to vector if URL fails
-        e.currentTarget.style.display = 'none'
-      }}
+      onError={() => setErrored(true)}
     />
   )
 }
