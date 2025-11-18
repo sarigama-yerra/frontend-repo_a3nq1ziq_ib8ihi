@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { motion, AnimatePresence, useInView } from 'framer-motion'
+import { motion, AnimatePresence, useInView, useScroll, useTransform } from 'framer-motion'
 import { ChevronDown } from 'lucide-react'
 
 // Shared overlays
@@ -84,7 +84,7 @@ function ScrollPrompt({ label = 'Descend', onClick }) {
         className="flex items-center gap-2 cursor-pointer select-none"
       >
         <ChevronDown className="w-6 h-6" />
-        <span className="text-sm tracking-widest uppercase">{label}</span>
+        <span className="text-sm tracking-widest uppercase font-semibold">{label}</span>
       </motion.div>
     </div>
   )
@@ -168,17 +168,39 @@ export default function LandingHero({ onDone }) {
     }, 1200)
   }
 
+  // Direct jump to constellation (for top-right action)
+  const handleBrowseSins = () => {
+    const target = document.getElementById('constellation')
+    onDone && onDone()
+    if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+
   // Only arm the bleed when the final screen is actually in view
   const s5InView = useInView(s5Ref, { amount: 0.6 })
 
+  // Parallax for split ELANOR on screen 2
+  const { scrollYProgress: s2Progress } = useScroll({ target: s2Ref, offset: ['start end', 'end start'] })
+  const yTop = useTransform(s2Progress, [0, 1], [-22, 18])
+  const yBottom = useTransform(s2Progress, [0, 1], [22, -18])
+
   return (
     <div ref={heroRef} className="relative w-full text-white bg-black">
+      {/* Top-right action */}
+      <div className="pointer-events-auto absolute top-5 right-6 z-[60]">
+        <button
+          onClick={handleBrowseSins}
+          className="uppercase tracking-widest text-sm px-4 py-2 border border-zinc-700/80 rounded-md bg-black/40 backdrop-blur-sm hover:bg-[#C41E3A]/10 hover:border-[#C41E3A] transition-colors font-semibold"
+        >
+          Browse Sins
+        </button>
+      </div>
+
       {/* Screen 1: The Void Entry */}
       <section ref={s1Ref} className="relative min-h-screen flex items-center justify-center overflow-hidden">
         <Grain />
         <Embers count={5} />
         <motion.h1
-          className="text-center font-[Cinzel] leading-tight px-6"
+          className="text-center font-[Cinzel] leading-tight px-6 font-semibold"
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           style={{ fontSize: 'clamp(40px, 7vw, 72px)', textShadow: '0 0 24px rgba(196,30,58,0.25), 0 0 6px rgba(196,30,58,0.15)' }}
@@ -193,7 +215,20 @@ export default function LandingHero({ onDone }) {
         <Grain />
         <Embers count={4} intensity={0.8} />
         <div className="relative w-full max-w-[1200px] mx-auto px-6 text-center select-none">
-          <StaggerMonogram />
+          {/* Split ELANOR parallax */}
+          <div className="relative inline-block">
+            <motion.div style={{ y: yTop }} className="relative overflow-hidden" >
+              <div style={{ clipPath: 'inset(0 0 50% 0)' }}>
+                <StaggerMonogram />
+              </div>
+            </motion.div>
+            <motion.div style={{ y: yBottom }} className="relative -mt-[0.28em] overflow-hidden" aria-hidden>
+              <div style={{ clipPath: 'inset(50% 0 0 0)' }}>
+                <StaggerMonogram />
+              </div>
+            </motion.div>
+          </div>
+
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -201,7 +236,7 @@ export default function LandingHero({ onDone }) {
             transition={{ delay: 1.5, duration: 0.8 }}
             className="mt-6"
           >
-            <p className="text-zinc-300/90 italic" style={{ fontSize: 'clamp(22px, 3.5vw, 36px)' }}>
+            <p className="text-zinc-200 italic font-semibold" style={{ fontSize: 'clamp(22px, 3.5vw, 36px)' }}>
               Seven Sins. Seven Scents. One Obsession.
             </p>
             <InkUnderline />
@@ -268,7 +303,7 @@ export default function LandingHero({ onDone }) {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, amount: 0.6 }}
             transition={{ duration: 0.8 }}
-            className="text-[clamp(28px,5vw,48px)] font-[Cormorant_Garamond] italic"
+            className="text-[clamp(28px,5vw,48px)] font-[Cormorant_Garamond] italic font-semibold"
           >
             <span className="text-[#C41E3A]">“</span>Sin is honest. These fragrances are truth.<span className="text-[#C41E3A]">”</span>
           </motion.blockquote>
@@ -277,7 +312,7 @@ export default function LandingHero({ onDone }) {
             whileInView={{ opacity: 1 }}
             viewport={{ once: true, amount: 0.6 }}
             transition={{ delay: 2, duration: 0.8 }}
-            className="mt-6 text-[clamp(18px,3vw,32px)]"
+            className="mt-6 text-[clamp(18px,3vw,32px)] font-semibold"
           >
             Choose your sin...
           </motion.p>
@@ -305,7 +340,7 @@ function Typewriter({ text }) {
     return () => { clearTimeout(start); clearInterval(blink) }
   }, [text])
   return (
-    <span>
+    <span className="font-semibold">
       {shown}
       <span className="inline-block w-[0.6ch]">{cursor ? '_' : ' '}</span>
     </span>
@@ -368,7 +403,7 @@ function Manifesto() {
       {lines.map((l, i) => (
         <motion.p
           key={i}
-          className="font-[Cormorant_Garamond] text-zinc-200"
+          className="font-[Cormorant_Garamond] text-zinc-200 font-semibold"
           style={{ fontSize: 'clamp(24px, 3.2vw, 32px)', letterSpacing: '0.02em' }}
           initial={{ opacity: 0, y: 12, filter: 'blur(2px)' }}
           whileInView={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
@@ -396,8 +431,8 @@ function PhilosophyCard({ title, items, Icon }) {
       <div className="flex justify-center mb-4">
         <Icon />
       </div>
-      <h3 className="font-[Josefin_Sans] text-[18px] tracking-[0.2em] uppercase mb-3">{title}</h3>
-      <ul className="font-[Josefin_Sans] text-[14px] text-zinc-300/90 space-y-2">
+      <h3 className="font-[Josefin_Sans] text-[18px] tracking-[0.2em] uppercase mb-3 font-semibold">{title}</h3>
+      <ul className="font-[Josefin_Sans] text-[14px] text-zinc-200 space-y-2 font-semibold">
         {items.map((it, idx) => (<li key={idx}>{it}</li>))}
       </ul>
     </motion.div>
