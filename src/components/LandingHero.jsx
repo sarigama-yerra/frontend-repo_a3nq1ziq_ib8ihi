@@ -192,45 +192,68 @@ export default function LandingHero({ onDone }) {
 
   const s6InView = useInView(s6Ref, { amount: 0.6 })
 
-  // Screen 2: Strict, in-sequence brand reveal
+  // Screen 2 timeline flags (explicit, deterministic)
+  const s2InView = useInView(s2Ref, { amount: 0.2 })
+  const [seqStarted, setSeqStarted] = useState(false)
+  const [showWordmark, setShowWordmark] = useState(false)
+  const [showTopLine, setShowTopLine] = useState(false)
+  const [cutting, setCutting] = useState(false)
+  const [splitting, setSplitting] = useState(false)
+  const [showDivider, setShowDivider] = useState(false)
+  const [showQuote, setShowQuote] = useState(false)
+
   const controlsLeft = useAnimation()
   const controlsRight = useAnimation()
-  const controlsMono = useAnimation()
 
-  const s2InView = useInView(s2Ref, { amount: 0.6 })
-  const [seqStarted, setSeqStarted] = useState(false)
-  const [phase, setPhase] = useState('idle') // idle -> intro -> lineTop -> cut -> split -> divider -> quote
+  // Ensure sequence starts even if inView never crosses threshold (safari/ios/very small screens)
+  useEffect(() => {
+    if (seqStarted) return
+    const earlyKick = setTimeout(() => {
+      if (!seqStarted) startS2Sequence()
+    }, 800)
+    return () => clearTimeout(earlyKick)
+  }, [seqStarted])
 
   useEffect(() => {
     if (!s2InView || seqStarted) return
-    setSeqStarted(true)
+    startS2Sequence()
+  }, [s2InView, seqStarted])
 
-    // reset to initial state
-    setPhase('intro')
-    controlsMono.set({ opacity: 0 })
+  const startS2Sequence = () => {
+    setSeqStarted(true)
+    // Reset
+    setShowWordmark(false)
+    setShowTopLine(false)
+    setCutting(false)
+    setSplitting(false)
+    setShowDivider(false)
+    setShowQuote(false)
     controlsLeft.set({ x: 0 })
     controlsRight.set({ x: 0 })
 
-    // Step 1: ELANOR fades in over 1.5s, hold 0.5s
-    controlsMono.start({ opacity: 1, transition: { duration: 1.5, ease: 'easeInOut' } })
+    // 0-2.0s: Wordmark fade in (1.5s) + 0.5s hold
+    setShowWordmark(true)
 
-    const t1 = setTimeout(() => setPhase('lineTop'), 2000) // 0-2.0s
-    const t2 = setTimeout(() => setPhase('cut'), 2500)     // 2.0-2.5s
-    const t3 = setTimeout(() => setPhase('split'), 3500)   // 2.5-3.5s
-    const t4 = setTimeout(() => setPhase('divider'), 4500) // 3.5-4.5s
-    const t5 = setTimeout(() => setPhase('quote'), 5000)   // 4.5-5.0s
-
-    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); clearTimeout(t4); clearTimeout(t5) }
-  }, [s2InView, seqStarted, controlsMono, controlsLeft, controlsRight])
-
-  useEffect(() => {
-    if (phase === 'split') {
-      // Hide full word so halves are clean
-      controlsMono.start({ opacity: 0, transition: { duration: 0.05 } })
+    // 2.0-2.5s: Horizontal red line (top)
+    const t1 = setTimeout(() => setShowTopLine(true), 2000)
+    // 2.5-3.5s: Rotate to vertical + drop
+    const t2 = setTimeout(() => { setShowTopLine(false); setCutting(true) }, 2500)
+    // 3.5-4.5s: Split halves
+    const t3 = setTimeout(() => {
+      setCutting(false)
+      setSplitting(true)
       controlsLeft.start({ x: -200, transition: { duration: 1.0, ease: 'easeOut' } })
       controlsRight.start({ x: 200, transition: { duration: 1.0, ease: 'easeOut' } })
-    }
-  }, [phase, controlsLeft, controlsRight, controlsMono])
+    }, 3500)
+    // 4.5-5.0s: Divider horizontal
+    const t4 = setTimeout(() => { setSplitting(false); setShowDivider(true) }, 4500)
+    // 5.0-6.0s: Quote fade in
+    const t5 = setTimeout(() => setShowQuote(true), 5000)
+
+    // Safety cleanup (not strictly necessary in one-shot sequence)
+    const cleaners = [t1, t2, t3, t4, t5]
+    return () => cleaners.forEach(clearTimeout)
+  }
 
   // Scroll-driven fade on Screen 2 content
   const { scrollYProgress: s2Progress } = useScroll({ target: s2Ref, offset: ['start end', 'end start'] })
@@ -277,25 +300,34 @@ export default function LandingHero({ onDone }) {
         <Embers count={3} intensity={0.6} />
         <motion.div style={{ y: driftY, opacity: fadeOut }} className="relative w-full max-w-[1200px] mx-auto px-6 text-center select-none">
           <div className="relative inline-block">
-            {/* Full wordmark (fades in during intro; hidden when splitting) */}
-            <motion.div animate={controlsMono} className="relative z-[1]">
-              <Wordmark />
-            </motion.div>
+            {/* Full wordmark (fades in 0-2s) */}
+            <AnimatePresence>
+              {showWordmark && (
+                <motion.div
+                  key="wm"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 1.5, ease: 'easeInOut' }}
+                  className="relative z-[1]"
+                >
+                  <Wordmark />
+                </motion.div>
+              )}
+            </AnimatePresence>
 
-            {/* Split halves shown from split onward */}
+            {/* Split halves (visible during split/divider/quote) */}
             <div className="pointer-events-none absolute inset-0 z-[2]">
               <motion.div
                 className="absolute inset-0"
-                animate={{ opacity: phase === 'split' || phase === 'divider' || phase === 'quote' ? 1 : 0 }}
+                animate={{ opacity: splitting || showDivider || showQuote ? 1 : 0 }}
                 transition={{ duration: 0.12 }}
               >
-                {/* Left half */}
                 <motion.div className="absolute inset-0 overflow-hidden" style={{ clipPath: 'inset(0 50% 0 0)' }} animate={controlsLeft}>
                   <div className="absolute inset-0 flex justify-center">
                     <Wordmark />
                   </div>
                 </motion.div>
-                {/* Right half */}
                 <motion.div className="absolute inset-0 overflow-hidden" style={{ clipPath: 'inset(0 0 0 50%)' }} animate={controlsRight}>
                   <div className="absolute inset-0 flex justify-center">
                     <Wordmark />
@@ -304,62 +336,55 @@ export default function LandingHero({ onDone }) {
               </motion.div>
             </div>
 
-            {/* Red blade/line element following sequence */}
+            {/* Top horizontal red line (2.0-2.5s) */}
             <AnimatePresence>
-              {(phase === 'lineTop' || phase === 'cut' || phase === 'split' || phase === 'divider' || phase === 'quote') && (
+              {showTopLine && (
                 <motion.div
-                  key="blade"
-                  className="absolute z-[3]"
-                  initial={{ opacity: 0 }}
-                  animate={(() => {
-                    if (phase === 'lineTop') {
-                      // Horizontal line near top
-                      return {
-                        opacity: 1,
-                        top: -50, // 50px above wordmark container top
-                        left: '50%',
-                        x: '-50%',
-                        y: 0,
-                        width: '40%',
-                        height: 2,
-                        rotate: 0,
-                      }
-                    }
-                    if (phase === 'cut' || phase === 'split') {
-                      // Vertical line through center, full height
-                      return {
-                        opacity: 1,
-                        top: 0,
-                        left: '50%',
-                        x: '-50%',
-                        y: 0,
-                        width: 2,
-                        height: '100%',
-                        rotate: 90,
-                      }
-                    }
-                    // Divider: horizontal full-width centered
-                    return {
-                      opacity: 1,
-                      top: '50%',
-                      left: '50%',
-                      x: '-50%',
-                      y: '-50%',
-                      width: '100%',
-                      height: 2,
-                      rotate: 0,
-                    }
-                  })()}
-                  transition={{ duration: phase === 'lineTop' ? 0.5 : (phase === 'cut' ? 1.0 : 0.5), ease: 'easeInOut' }}
-                  style={{ background: 'linear-gradient(to bottom, rgba(139,0,0,0), rgba(139,0,0,0.95), rgba(139,0,0,0))' }}
+                  key="topline"
+                  className="absolute left-1/2 -translate-x-1/2"
+                  initial={{ opacity: 0, width: 0 }}
+                  animate={{ opacity: 1, width: '40%' }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.5, ease: 'easeInOut' }}
+                  style={{ top: -50, height: 2, background: '#8B0000', boxShadow: '0 0 12px rgba(139,0,0,0.6)' }}
+                />
+              )}
+            </AnimatePresence>
+
+            {/* Vertical cutting line (2.5-3.5s) */}
+            <AnimatePresence>
+              {cutting && (
+                <motion.div
+                  key="cut"
+                  className="absolute left-1/2 -translate-x-1/2 top-0 w-[2px] z-[3]"
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: '100%', opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 1.0, ease: 'easeInOut' }}
+                  style={{ background: 'linear-gradient(to bottom, rgba(139,0,0,0), rgba(139,0,0,0.95), rgba(139,0,0,0))', boxShadow: '0 0 22px rgba(139,0,0,0.65)' }}
+                />
+              )}
+            </AnimatePresence>
+
+            {/* Divider horizontal (4.5-5.0s) */}
+            <AnimatePresence>
+              {showDivider && (
+                <motion.div
+                  key="divider"
+                  className="absolute left-1/2 -translate-x-1/2 top-full mt-6 h-[2px] z-[2]"
+                  initial={{ width: 0, opacity: 0 }}
+                  animate={{ width: '100%', opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.5, ease: 'easeOut' }}
+                  style={{ background: 'linear-gradient(to right, rgba(139,0,0,0), rgba(139,0,0,0.9), rgba(139,0,0,0))', boxShadow: '0 0 16px rgba(139,0,0,0.45)' }}
                 />
               )}
             </AnimatePresence>
           </div>
 
-          {/* Quote below divider */}
+          {/* Quote below divider (5.0-6.0s) */}
           <AnimatePresence>
-            {phase === 'quote' && (
+            {showQuote && (
               <motion.div key="copy" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 1.0 }} className="mt-10">
                 <p className="text-zinc-100 italic font-semibold" style={{ fontSize: 'clamp(32px, 3.5vw, 36px)' }}>
                   Seven scents. Seven temptations. Unapologetically yours.
@@ -565,7 +590,7 @@ function Typewriter({ text }) {
   )
 }
 
-// Refined ELANOR wordmark with letterpress feel
+// ELANOR wordmark in Cinzel with soft white and letterpress feel
 function Wordmark() {
   const letters = 'ELANOR'.split('')
   return (
