@@ -40,12 +40,12 @@ function App() {
           family="Oriental Leather"
           notes={["Leather", "Blood Orange", "Smoldering Incense"]}
           myth="Wrath channels Ares, god of war—each spray is armor for battle."
-          poem=[
+          poem={[
             'Steel in the pulse, ember in the throat,',
             'the night bends its knee to you.',
             'Smoke crowns your hunger as cities sleep,',
             'and you walk through the world unafraid.'
-          ]
+          ]}
         />
       </div>
 
@@ -56,10 +56,10 @@ function App() {
           family="Green Chypre"
           notes={["Serpentine Vetiver", "Bitter Absinthe", "Ivy"]}
           myth="Envy coils like a whispered promise—emerald, cool, inevitable."
-          poem=[
+          poem={[
             'A garden behind glass, untouched, unreal,',
             'vine and shadow learning your name.',
-          ]
+          ]}
         />
       </div>
 
@@ -70,10 +70,10 @@ function App() {
           family="Gourmand Floral"
           notes={["Red Roses", "Primal Musk", "Dark Chocolate"]}
           myth="Lust wears the night like silk and speaks in the language of heat."
-          poem=[
+          poem={[
             'The mouth remembers what the mind forgets,',
             'sugar on skin, velvet on breath.',
-          ]
+          ]}
         />
       </div>
 
