@@ -3,6 +3,7 @@ import LandingHero from './components/LandingHero'
 import LandingIntro from './components/LandingIntro'
 import SinsConstellation from './components/SinsConstellation'
 import SinModule from './components/SinModule'
+import SynestheticExperience from './components/SynestheticExperience'
 
 function App() {
   const [entered, setEntered] = useState(false)
@@ -31,6 +32,9 @@ function App() {
 
       {/* Section 2: Constellation grid */}
       <SinsConstellation onSelect={handleSelectSin} />
+
+      {/* New: Synesthetic Experience */}
+      <SynestheticExperience />
 
       {/* Section 3: Immersive Sin Showcase */}
       <div id="sin-wrath">

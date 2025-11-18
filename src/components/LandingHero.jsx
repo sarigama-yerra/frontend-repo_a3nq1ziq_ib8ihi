@@ -178,10 +178,11 @@ export default function LandingHero({ onDone }) {
   // Only arm the bleed when the final screen is actually in view
   const s5InView = useInView(s5Ref, { amount: 0.6 })
 
-  // Parallax for split ELANOR on screen 2
+  // Parallax for split ELANOR on screen 2 (vertical cut: left/right halves)
   const { scrollYProgress: s2Progress } = useScroll({ target: s2Ref, offset: ['start end', 'end start'] })
-  const yTop = useTransform(s2Progress, [0, 1], [-22, 18])
-  const yBottom = useTransform(s2Progress, [0, 1], [22, -18])
+  const xLeft = useTransform(s2Progress, [0, 1], [0, -28])
+  const xRight = useTransform(s2Progress, [0, 1], [0, 28])
+  const seamGlowOpacity = useTransform(s2Progress, [0, 0.4, 1], [0, 0.8, 0.2])
 
   return (
     <div ref={heroRef} className="relative w-full text-white bg-black">
@@ -191,7 +192,7 @@ export default function LandingHero({ onDone }) {
           onClick={handleBrowseSins}
           className="uppercase tracking-widest text-sm px-4 py-2 border border-zinc-700/80 rounded-md bg-black/40 backdrop-blur-sm hover:bg-[#C41E3A]/10 hover:border-[#C41E3A] transition-colors font-semibold"
         >
-          Browse Sins
+          Choose Your Guilty Pleasure
         </button>
       </div>
 
@@ -210,20 +211,28 @@ export default function LandingHero({ onDone }) {
         {showPrompt && <ScrollPrompt label="Descend" onClick={() => scrollTo(s2Ref)} />}
       </section>
 
-      {/* Screen 2: The Revelation */}
+      {/* Screen 2: The Revelation (Revised) */}
       <section ref={s2Ref} className="relative min-h-screen grid place-items-center overflow-hidden">
         <Grain />
         <Embers count={4} intensity={0.8} />
         <div className="relative w-full max-w-[1200px] mx-auto px-6 text-center select-none">
-          {/* Split ELANOR parallax */}
+          {/* Split ELANOR vertical parallax with red seam */}
           <div className="relative inline-block">
-            <motion.div style={{ y: yTop }} className="relative overflow-hidden" >
-              <div style={{ clipPath: 'inset(0 0 50% 0)' }}>
+            {/* Left half */}
+            <motion.div style={{ x: xLeft }} className="relative inline-block align-top overflow-hidden">
+              <div style={{ clipPath: 'inset(0 50% 0 0)' }}>
                 <StaggerMonogram />
               </div>
             </motion.div>
-            <motion.div style={{ y: yBottom }} className="relative -mt-[0.28em] overflow-hidden" aria-hidden>
-              <div style={{ clipPath: 'inset(50% 0 0 0)' }}>
+            {/* Seam glow */}
+            <motion.div
+              aria-hidden
+              className="absolute top-1/2 -translate-y-1/2 left-1/2 -translate-x-1/2 h-[110%] w-[3px]"
+              style={{ background: 'linear-gradient(to bottom, transparent, rgba(196,30,58,0.9), transparent)', boxShadow: '0 0 28px rgba(196,30,58,0.6)', opacity: seamGlowOpacity }}
+            />
+            {/* Right half */}
+            <motion.div style={{ x: xRight }} className="relative inline-block align-top overflow-hidden">
+              <div style={{ clipPath: 'inset(0 0 0 50%)' }}>
                 <StaggerMonogram />
               </div>
             </motion.div>
@@ -233,11 +242,11 @@ export default function LandingHero({ onDone }) {
             initial={{ opacity: 0, y: 10 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, amount: 0.6 }}
-            transition={{ delay: 1.5, duration: 0.8 }}
+            transition={{ delay: 1.0, duration: 0.8 }}
             className="mt-6"
           >
             <p className="text-zinc-200 italic font-semibold" style={{ fontSize: 'clamp(22px, 3.5vw, 36px)' }}>
-              Seven Sins. Seven Scents. One Obsession.
+              Wear your sin. Feel no guilt.
             </p>
             <InkUnderline />
           </motion.div>
@@ -245,7 +254,7 @@ export default function LandingHero({ onDone }) {
         <ScrollPrompt label="Descend into temptation" onClick={() => scrollTo(s3Ref)} />
       </section>
 
-      {/* Screen 3: The Manifesto */}
+      {/* Screen 3: The Manifesto (Revised) */}
       <section ref={s3Ref} className="relative min-h-screen flex items-center justify-center overflow-hidden">
         <Grain />
         <div className="absolute inset-0" style={{ background: 'radial-gradient(circle at 50% 100%, rgba(139,0,0,0.08), transparent 60%)' }} />
@@ -350,14 +359,14 @@ function Typewriter({ text }) {
 function StaggerMonogram() {
   const letters = 'ELANOR'.split('')
   return (
-    <div className="font-[Cinzel] tracking-[0.18em] leading-none" style={{ fontSize: 'clamp(120px, 14vw, 180px)' }}>
+    <div className="font-[Cinzel] tracking-[0.18em] leading-none" style={{ fontSize: 'clamp(140px, 14vw, 180px)' }}>
       {letters.map((ch, i) => (
         <motion.span
           key={i}
           initial={{ opacity: 0, y: 8, filter: 'blur(4px)' }}
           whileInView={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
           viewport={{ once: true, amount: 0.6 }}
-          transition={{ delay: i * 0.2, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+          transition={{ delay: i * 0.12, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
           style={{
             display: 'inline-block',
             color: '#fff',
@@ -374,7 +383,6 @@ function StaggerMonogram() {
 }
 
 function InkUnderline() {
-  const pathLen = 320
   return (
     <motion.svg width="420" height="30" viewBox="0 0 420 30" className="mx-auto mt-4">
       <motion.path
@@ -394,9 +402,9 @@ function InkUnderline() {
 
 function Manifesto() {
   const lines = [
-    'We craft niche fragrances for those who embrace the darkness within.',
-    'Each scent embodies a deadly sin—complex, unapologetic, unforgettable.',
-    'This is perfume as ritual, not commodity.'
+    'What does sin smell like?',
+    'WRATH is leather and fury. ENVY is poison-green obsession. LUST is raw, unapologetic desire.',
+    "Each fragrance captures the feeling—the guilty pleasure of embracing what you're told to resist.",
   ]
   return (
     <div className="space-y-6">
@@ -408,7 +416,7 @@ function Manifesto() {
           initial={{ opacity: 0, y: 12, filter: 'blur(2px)' }}
           whileInView={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
           viewport={{ once: true, amount: 0.6 }}
-          transition={{ delay: i * 0.9, duration: 0.8 }}
+          transition={{ delay: i * 0.7, duration: 0.7 }}
         >
           {l}
         </motion.p>
