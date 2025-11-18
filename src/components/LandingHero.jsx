@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { motion, AnimatePresence, useInView, useScroll, useTransform } from 'framer-motion'
+import { motion, AnimatePresence, useAnimation, useInView, useScroll, useTransform } from 'framer-motion'
 import { ChevronDown } from 'lucide-react'
 
 // Shared overlays
@@ -39,6 +39,33 @@ function Embers({ count = 4, intensity = 0.9 }) {
               filter: 'blur(0.5px) drop-shadow(0 0 10px rgba(196,30,58,0.5))',
             }}
           />
+        </motion.div>
+      ))}
+    </div>
+  )
+}
+
+function GoldParticles({ count = 24 }) {
+  const parts = useMemo(() => Array.from({ length: count }).map((_, i) => ({
+    id: i,
+    left: Math.random() * 100,
+    top: Math.random() * 100,
+    size: 1 + Math.random() * 2.5,
+    dur: 10 + Math.random() * 12,
+    delay: Math.random() * 4,
+  })), [count])
+  return (
+    <div className="pointer-events-none absolute inset-0">
+      {parts.map(p => (
+        <motion.div
+          key={p.id}
+          className="absolute rounded-full"
+          style={{ left: `${p.left}%`, top: `${p.top}%` }}
+          initial={{ y: 0, opacity: 0 }}
+          animate={{ y: [-10, 10, -10], opacity: [0, 0.8, 0.2] }}
+          transition={{ duration: p.dur, repeat: Infinity, ease: 'easeInOut', delay: p.delay }}
+        >
+          <div style={{ width: p.size, height: p.size, background: 'rgba(232,197,71,0.8)', filter: 'blur(1px) drop-shadow(0 0 6px rgba(232,197,71,0.3))' }} />
         </motion.div>
       ))}
     </div>
@@ -88,11 +115,11 @@ export default function LandingHero({ onDone }) {
   const s3Ref = useRef(null)
   const s4Ref = useRef(null)
   const s5Ref = useRef(null)
+  const s6Ref = useRef(null)
 
   const [showPrompt, setShowPrompt] = useState(false)
   const [allowBleed, setAllowBleed] = useState(false)
 
-  // Ensure we start at the very top and avoid browser restoring deep scroll
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'auto' })
     const t = setTimeout(() => setShowPrompt(true), 3000)
@@ -102,13 +129,13 @@ export default function LandingHero({ onDone }) {
 
   const scrollTo = (ref) => ref?.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 
-  // Section-step wheel handler to avoid big native jumps
+  // Wheel step navigation within hero cluster
   const [isNavigating, setIsNavigating] = useState(false)
   useEffect(() => {
     const node = heroRef.current
     if (!node) return
 
-    const refs = [s1Ref, s2Ref, s3Ref, s4Ref, s5Ref]
+    const refs = [s1Ref, s2Ref, s3Ref, s4Ref, s5Ref, s6Ref]
     const getCurrentIndex = () => {
       const mid = window.innerHeight / 2
       let best = 0
@@ -157,32 +184,50 @@ export default function LandingHero({ onDone }) {
     }, 1200)
   }
 
-  // Direct jump to constellation (top-right action)
   const handleBrowseSins = () => {
     const target = document.getElementById('constellation')
     onDone && onDone()
     if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
 
-  const s5InView = useInView(s5Ref, { amount: 0.6 })
+  const s6InView = useInView(s6Ref, { amount: 0.6 })
 
-  // Screen 2: timeline for red line animation
-  const [phase, setPhase] = useState('mono') // mono -> vline -> hline -> copy
+  // Screen 2: Blade cut timeline and controls
+  const [phase, setPhase] = useState('mono') // mono -> vline -> split -> hline -> copy
+  const controlsLeft = useAnimation()
+  const controlsRight = useAnimation()
+  const controlsMono = useAnimation()
+
   useEffect(() => {
-    if (!s2Ref.current) return
-    let t1, t2
-    // monogram appears immediately, after 1.5s show vertical line
-    t1 = setTimeout(() => setPhase('vline'), 1500)
-    // after vertical cut finishes + pause, switch to horizontal divider then copy
-    t2 = setTimeout(() => setPhase('hline'), 1500 + 1000 + 500)
-    const t3 = setTimeout(() => setPhase('copy'), 1500 + 1000 + 500 + 400)
-    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3) }
+    // Start: show monogram
+    controlsMono.start({ opacity: 1, y: 0 })
+    const t1 = setTimeout(() => setPhase('vline'), 1500)
+    const t2 = setTimeout(() => setPhase('split'), 1500 + 1000) // after line reaches bottom
+    const t3 = setTimeout(() => setPhase('hline'), 1500 + 1000 + 500) // pause 0.5s
+    const t4 = setTimeout(() => setPhase('copy'), 1500 + 1000 + 500 + 400)
+    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); clearTimeout(t4) }
   }, [])
 
-  // Parallax for subtle drift on scroll (fade + drift up when leaving)
+  useEffect(() => {
+    if (phase === 'split') {
+      // Hide full mono, show halves moving outward quickly to suggest slicing
+      controlsMono.start({ opacity: 0, transition: { duration: 0.2 } })
+      controlsLeft.start({ x: -22, transition: { duration: 0.35, ease: [0.22, 1, 0.36, 1] } })
+      controlsRight.start({ x: 22, transition: { duration: 0.35, ease: [0.22, 1, 0.36, 1] } })
+    }
+  }, [phase, controlsLeft, controlsRight, controlsMono])
+
+  // Scroll-driven fade on Screen 2 content
   const { scrollYProgress: s2Progress } = useScroll({ target: s2Ref, offset: ['start end', 'end start'] })
   const driftY = useTransform(s2Progress, [0, 1], [0, -30])
   const fadeOut = useTransform(s2Progress, [0, 0.8, 1], [1, 0.5, 0])
+
+  // Screen 3 (Brand Revelation) scroll dynamics
+  const { scrollYProgress: s3Progress } = useScroll({ target: s3Ref, offset: ['start end', 'end start'] })
+  const s3Drift = useTransform(s3Progress, [0, 1], [0, -30])
+  const s3Blur = useTransform(s3Progress, [0, 0.8, 1], ['blur(0px)', 'blur(2px)', 'blur(6px)'])
+  const s3Opacity = useTransform(s3Progress, [0, 0.9, 1], [1, 0.7, 0])
+  const colsOpacity = useTransform(s3Progress, [0, 0.8, 1], [0.05, 0.15, 0.2])
 
   return (
     <div ref={heroRef} className="relative w-full text-white bg-black">
@@ -211,39 +256,62 @@ export default function LandingHero({ onDone }) {
         {showPrompt && <ScrollPrompt label="Descend" onClick={() => scrollTo(s2Ref)} />}
       </section>
 
-      {/* Screen 2: The Brand Reveal (Revised with red line animation) */}
+      {/* Screen 2: Brand Reveal with Blade Cut */}
       <section ref={s2Ref} className="relative min-h-screen grid place-items-center overflow-hidden bg-black">
         <Grain />
         <Embers count={3} intensity={0.6} />
-
         <motion.div style={{ y: driftY, opacity: fadeOut }} className="relative w-full max-w-[1200px] mx-auto px-6 text-center select-none">
-          {/* ELANOR monogram */}
           <div className="relative inline-block">
-            <StaggerMonogram visible={true} />
+            {/* Full monogram (fades out on split) */}
+            <motion.div animate={controlsMono} className="relative">
+              <MonogramFull />
+            </motion.div>
 
-            {/* Vertical red line cutting down */}
+            {/* Split monogram halves (become visible at split) */}
+            <div className="pointer-events-none absolute inset-0">
+              <motion.div
+                className="absolute inset-0"
+                animate={{ opacity: phase === 'split' || phase === 'hline' || phase === 'copy' ? 1 : 0 }}
+                transition={{ duration: 0.2 }}
+              >
+                {/* Left half */}
+                <motion.div className="absolute inset-0 overflow-hidden" style={{ clipPath: 'inset(0 50% 0 0)' }} animate={controlsLeft}>
+                  <div className="absolute inset-0 flex justify-center">
+                    <MonogramFull />
+                  </div>
+                </motion.div>
+                {/* Right half */}
+                <motion.div className="absolute inset-0 overflow-hidden" style={{ clipPath: 'inset(0 0 0 50%)' }} animate={controlsRight}>
+                  <div className="absolute inset-0 flex justify-center">
+                    <MonogramFull />
+                  </div>
+                </motion.div>
+              </motion.div>
+            </div>
+
+            {/* Vertical red blade traveling down */}
             <AnimatePresence>
               {phase === 'vline' && (
                 <motion.div
-                  key="vline"
+                  key="blade"
                   className="absolute left-1/2 -translate-x-1/2 top-0 w-[2px]"
                   initial={{ height: 0, opacity: 0 }}
                   animate={{ height: '100%', opacity: 1 }}
                   exit={{ opacity: 0 }}
                   transition={{ duration: 1.0, ease: [0.22, 1, 0.36, 1] }}
-                  style={{ background: 'linear-gradient(to bottom, rgba(196,30,58,0), rgba(196,30,58,0.95), rgba(196,30,58,0))', boxShadow: '0 0 18px rgba(196,30,58,0.6)' }}
+                  style={{ background: 'linear-gradient(to bottom, rgba(196,30,58,0), rgba(196,30,58,0.95), rgba(196,30,58,0))', boxShadow: '0 0 22px rgba(196,30,58,0.65)' }}
                 />
               )}
             </AnimatePresence>
 
-            {/* Horizontal divider expansion */}
+            {/* Horizontal divider expansion beneath */}
             <AnimatePresence>
               {(phase === 'hline' || phase === 'copy') && (
                 <motion.div
                   key="hline"
                   className="absolute left-1/2 -translate-x-1/2 top-full mt-6 h-[2px]"
                   initial={{ width: 0, opacity: 0 }}
-                  animate={{ width: '72%', opacity: 1 }}
+                  animate={{ width: '80%', opacity: 1 }}
                   exit={{ opacity: 0 }}
                   transition={{ duration: 0.6, ease: 'easeOut' }}
                   style={{ background: 'linear-gradient(to right, rgba(196,30,58,0), rgba(196,30,58,0.9), rgba(196,30,58,0))', boxShadow: '0 0 16px rgba(196,30,58,0.45)' }}
@@ -263,44 +331,85 @@ export default function LandingHero({ onDone }) {
             )}
           </AnimatePresence>
         </motion.div>
-
         <ScrollPrompt label="Descend into temptation" onClick={() => scrollTo(s3Ref)} />
       </section>
 
-      {/* Screen 3: Brand Introduction (Revised) */}
-      <section ref={s3Ref} className="relative min-h-screen flex items-center justify-center overflow-hidden">
-        {/* Subtle gradient from black to deep burgundy */}
-        <div className="absolute inset-0" style={{ background: 'radial-gradient(120% 120% at 50% 100%, rgba(139,0,0,0.15), rgba(0,0,0,1) 60%)' }} />
-        {/* Ink wash texture behind text */}
-        <div className="absolute inset-0 opacity-[0.1]" style={{ backgroundImage: 'url(https://images.unsplash.com/photo-1524638431109-93d95c968f03?auto=format&fit=crop&w=1200&q=60)', backgroundSize: 'cover', backgroundPosition: 'center' }} />
-        <Embers count={2} intensity={0.4} />
+      {/* Screen 3: Brand Revelation (Completely Revised) */}
+      <section ref={s3Ref} className="relative min-h-screen flex items-center justify-center overflow-hidden" style={{ background: 'linear-gradient(180deg, #0A0A0A 0%, #1A0B0F 100%)' }}>
+        {/* Marble texture */}
+        <div className="absolute inset-0 opacity-[0.08]" style={{ backgroundImage: 'url(https://images.unsplash.com/photo-1760764541302-e3955fbc6b2b?ixid=M3w3OTkxMTl8MHwxfHNlYXJjaHwxfHxjZXJhbWljJTIwcG90dGVyeSUyMGhhbmRtYWRlfGVufDB8MHx8fDE3NjM0MTE5NzJ8MA&ixlib=rb-4.1.0&w=1600&auto=format&fit=crop&q=80)', backgroundSize: 'cover', backgroundPosition: 'center' }} />
+        {/* Column silhouettes left/right */}
+        <motion.div className="absolute top-0 bottom-0 left-0 w-1/3" style={{ opacity: colsOpacity }}>
+          <div className="absolute inset-y-0 left-[-10%] w-[60%]" style={{ background: 'radial-gradient(40% 60% at 70% 50%, rgba(58,58,58,0.2), transparent 70%)' }} />
+        </motion.div>
+        <motion.div className="absolute top-0 bottom-0 right-0 w-1/3" style={{ opacity: colsOpacity }}>
+          <div className="absolute inset-y-0 right-[-10%] w-[60%]" style={{ background: 'radial-gradient(40% 60% at 30% 50%, rgba(58,58,58,0.2), transparent 70%)' }} />
+        </motion.div>
+        {/* Gold stardust */}
+        <GoldParticles count={28} />
 
-        <div className="px-8 max-w-4xl text-center relative">
-          <motion.h2
-            className="font-[Cinzel] font-semibold"
-            style={{ fontSize: 'clamp(36px,5vw,48px)' }}
-            initial={{ opacity: 0, y: 8 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, amount: 0.6 }}
-            transition={{ duration: 0.6 }}
-          >
-            What is Elanor?
-          </motion.h2>
-          <motion.div
-            initial={{ opacity: 0, filter: 'blur(3px)' }}
-            whileInView={{ opacity: 1, filter: 'blur(0px)' }}
-            viewport={{ once: true, amount: 0.6 }}
-            transition={{ duration: 0.8, delay: 0.2 }}
-            className="mt-6 space-y-5"
-          >
-            <p className="font-[Cormorant_Garamond] text-zinc-200 font-semibold" style={{ fontSize: 'clamp(20px,3.4vw,28px)' }}>
-              A niche perfume house crafting fragrances based on the seven deadly sins. Each scent captures the raw emotion of its sin—WRATH channels fury and fire, ENVY embodies toxic desire, LUST is unfiltered seduction.
-            </p>
-            <p className="font-[Cormorant_Garamond] text-zinc-200 font-semibold" style={{ fontSize: 'clamp(20px,3.4vw,28px)' }}>
-              Limited batches. Hand-blended compositions. No apologies.
-            </p>
-          </motion.div>
-        </div>
+        <motion.div style={{ y: s3Drift, filter: s3Blur, opacity: s3Opacity }} className="relative z-10 px-6 w-full max-w-5xl">
+          {/* Greek key border frame */}
+          <GreekFrame>
+            <div className="text-center py-10 md:py-14">
+              {/* Arete heading */}
+              <motion.h3
+                className="font-[Cinzel] font-bold tracking-[0.18em]"
+                style={{ color: '#D4AF37', fontSize: 'clamp(40px,6vw,64px)' }}
+                initial={{ opacity: 0, scale: 0.98 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.6, ease: 'easeOut' }}
+              >
+                Ἀρετή
+              </motion.h3>
+              <motion.p
+                className="font-[Cormorant_Garamond] italic"
+                style={{ color: '#E8E6E3', opacity: 0.8, fontSize: 'clamp(14px,3.5vw,18px)' }}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.4, duration: 0.6 }}
+              >
+                (Virtue through vice. Excellence through sin.)
+              </motion.p>
+
+              {/* Ornamental separator */}
+              <OrnamentalSeparator />
+
+              {/* Main statement lines with stagger */}
+              <motion.div
+                initial="hidden"
+                animate="show"
+                variants={{ hidden: {}, show: { transition: { staggerChildren: 0.3 } } }}
+                className="mt-8 space-y-6"
+              >
+                {[
+                  'The ancient Greeks understood: every virtue casts a shadow. WRATH is Ares unleashed. ENVY, the serpent coiled in Aphrodite\'s garden. LUST, Dionysus untamed.',
+                  'Seven fragrances. Seven philosophical truths. Each scent a confession written in amber, leather, and smoke.',
+                ].map((line, idx) => (
+                  <motion.p
+                    key={idx}
+                    variants={{ hidden: { opacity: 0, y: 8 }, show: { opacity: 1, y: 0 } }}
+                    className="font-[Cinzel]"
+                    style={{ color: '#F5F3F0', letterSpacing: '0.04em', lineHeight: 1.7, fontSize: 'clamp(24px,4.5vw,52px)' }}
+                  >
+                    {line}
+                  </motion.p>
+                ))}
+              </motion.div>
+
+              {/* Bottom italic quote */}
+              <motion.p
+                className="mt-10 font-[Cormorant_Garamond] italic"
+                style={{ color: '#C9A961', fontSize: 'clamp(20px,4vw,32px)' }}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 2.6, duration: 0.6 }}
+              >
+                Luxury for those who choose honesty over decorum.
+              </motion.p>
+            </div>
+          </GreekFrame>
+        </motion.div>
         <ScrollPrompt onClick={() => scrollTo(s4Ref)} />
       </section>
 
@@ -329,7 +438,6 @@ export default function LandingHero({ onDone }) {
             Every scent tells the truth others hide. Wear your darkness proudly.
           </motion.p>
 
-          {/* Optional alternate concept list for clarity */}
           <motion.div
             initial={{ opacity: 0 }}
             whileInView={{ opacity: 1 }}
@@ -356,37 +464,19 @@ export default function LandingHero({ onDone }) {
         <ScrollPrompt onClick={() => scrollTo(s5Ref)} />
       </section>
 
-      {/* Screen 5: Craftsmanship (Keep, slightly revised) */}
+      {/* Screen 5: Craftsmanship */}
       <section ref={s5Ref} className="relative min-h-screen flex items-center justify-center overflow-hidden">
         <Grain />
         <div className="grid grid-cols-1 md:grid-cols-3 gap-10 md:gap-16 px-8 max-w-6xl">
-          <CraftCol
-            icon={<IconChalice />}
-            lines={[
-              'Hand-blended micro-batches',
-              '20% perfume oil concentration',
-            ]}
-          />
-          <CraftCol
-            icon={<IconNumberedBottle />}
-            lines={[
-              'Limited production',
-              'Each batch numbered',
-            ]}
-          />
-          <CraftCol
-            icon={<IconOrnateBottle />}
-            lines={[
-              "Collector's packaging",
-              'Luxury without compromise',
-            ]}
-          />
+          <CraftCol icon={<IconChalice />} lines={[ 'Hand-blended micro-batches', '20% perfume oil concentration' ]} />
+          <CraftCol icon={<IconNumberedBottle />} lines={[ 'Limited production', 'Each batch numbered' ]} />
+          <CraftCol icon={<IconOrnateBottle />} lines={[ "Collector's packaging", 'Luxury without compromise' ]} />
         </div>
-        <ScrollPrompt label="Descend" onClick={() => scrollTo(s5Ref)} />
+        <ScrollPrompt label="Descend" onClick={() => scrollTo(s6Ref)} />
       </section>
 
-      {/* Screen 6: The Transition (Simplified) */}
-      <section className="relative min-h-screen grid place-items-center overflow-hidden bg-black">
+      {/* Screen 6: Transition to constellation */}
+      <section ref={s6Ref} className="relative min-h-screen grid place-items-center overflow-hidden bg-black">
         <Embers count={10} intensity={1.4} />
         <Smoke opacity={0.5} />
         <div className="text-center px-6">
@@ -410,8 +500,7 @@ export default function LandingHero({ onDone }) {
           </motion.p>
         </div>
 
-        {/* Ink bleed wipe revealing constellation */}
-        <InkBleedTrigger active={allowBleed} onComplete={handleFinalSplit} />
+        <InkBleedTrigger active={allowBleed && s6InView} onComplete={handleFinalSplit} />
       </section>
     </div>
   )
@@ -428,7 +517,7 @@ function Typewriter({ text }) {
       if (i < text.length) setTimeout(tick, 55)
     }
     const start = setTimeout(tick, 650)
-    const blink = setInterval(() => setCursor((v) => !v), 600)
+    const blink = setInterval(() => setCursor(v => !v), 600)
     return () => { clearTimeout(start); clearInterval(blink) }
   }, [text])
   return (
@@ -439,11 +528,11 @@ function Typewriter({ text }) {
   )
 }
 
-function StaggerMonogram({ visible = true }) {
+function MonogramFull() {
   const letters = 'ELANOR'.split('')
   return (
     <div className="font-[Cinzel] tracking-[0.18em] leading-none" style={{ fontSize: 'clamp(140px, 14vw, 180px)' }}>
-      {visible && letters.map((ch, i) => (
+      {letters.map((ch, i) => (
         <motion.span
           key={i}
           initial={{ opacity: 0, y: 8, filter: 'blur(4px)' }}
@@ -518,6 +607,65 @@ function CraftCol({ icon, lines }) {
   )
 }
 
+function GreekFrame({ children }) {
+  return (
+    <div className="relative">
+      <motion.svg
+        width="100%"
+        height="100%"
+        viewBox="0 0 1000 600"
+        preserveAspectRatio="none"
+        className="absolute inset-0"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 0.6 }}
+        transition={{ duration: 0.8 }}
+      >
+        <motion.rect
+          x="20" y="20" width="960" height="560" rx="2"
+          fill="none"
+          stroke="#D4AF37"
+          strokeWidth="1"
+          strokeOpacity="0.6"
+          strokeDasharray="3000"
+          initial={{ strokeDashoffset: 3000 }}
+          animate={{ strokeDashoffset: 0 }}
+          transition={{ duration: 1.2, ease: 'easeInOut' }}
+        />
+      </motion.svg>
+      <div className="relative">{children}</div>
+    </div>
+  )
+}
+
+function OrnamentalSeparator() {
+  return (
+    <div className="mt-6 flex items-center justify-center gap-3">
+      <motion.div
+        className="h-px"
+        style={{ background: '#B8A078', width: 80, opacity: 0.9 }}
+        initial={{ scaleX: 0 }}
+        animate={{ scaleX: 1 }}
+        transition={{ duration: 0.8 }}
+      />
+      <motion.span
+        style={{ color: '#D4AF37' }}
+        initial={{ opacity: 0, rotate: -10 }}
+        animate={{ opacity: 1, rotate: 0 }}
+        transition={{ delay: 0.2, duration: 0.6 }}
+      >
+        Ω
+      </motion.span>
+      <motion.div
+        className="h-px"
+        style={{ background: '#B8A078', width: 80, opacity: 0.9 }}
+        initial={{ scaleX: 0 }}
+        animate={{ scaleX: 1 }}
+        transition={{ duration: 0.8 }}
+      />
+    </div>
+  )
+}
+
 function InkBleedTrigger({ active, onComplete }) {
   const [started, setStarted] = useState(false)
   useEffect(() => {
@@ -541,21 +689,18 @@ function InkBleedTrigger({ active, onComplete }) {
     <AnimatePresence>
       {started && (
         <motion.div className="pointer-events-none absolute inset-0" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-          {/* Top bleed */}
           <motion.div
             className="absolute left-0 right-0 top-0"
             style={{ height: '0%', background: 'linear-gradient(to bottom, rgba(0,0,0,0.2), #000)' }}
             animate={{ height: '52%' }}
             transition={{ duration: 1.0, ease: [0.22, 1, 0.36, 1] }}
           />
-          {/* Bottom bleed */}
           <motion.div
             className="absolute left-0 right-0 bottom-0"
             style={{ height: '0%', background: 'linear-gradient(to top, rgba(0,0,0,0.2), #000)' }}
             animate={{ height: '52%' }}
             transition={{ duration: 1.0, ease: [0.22, 1, 0.36, 1] }}
           />
-          {/* Center seam glow */}
           <motion.div className="absolute left-0 right-0 top-1/2 -translate-y-1/2 h-[2px]" style={{ background: 'linear-gradient(to right, transparent, rgba(196,30,58,0.5), transparent)' }} />
         </motion.div>
       )}
