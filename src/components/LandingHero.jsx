@@ -192,46 +192,43 @@ export default function LandingHero({ onDone }) {
 
   const s6InView = useInView(s6Ref, { amount: 0.6 })
 
-  // Screen 2: Blade cut timeline and controls
-  const [phase, setPhase] = useState('mono') // mono -> vline -> split -> hline -> copy
+  // Screen 2: Strict, in-sequence brand reveal
   const controlsLeft = useAnimation()
   const controlsRight = useAnimation()
   const controlsMono = useAnimation()
 
-  // Trigger the Screen 2 timeline ONLY when Screen 2 actually enters the viewport
   const s2InView = useInView(s2Ref, { amount: 0.6 })
   const [seqStarted, setSeqStarted] = useState(false)
+  const [phase, setPhase] = useState('idle') // idle -> intro -> lineTop -> cut -> split -> divider -> quote
+
   useEffect(() => {
     if (!s2InView || seqStarted) return
     setSeqStarted(true)
 
-    // reset
-    setPhase('mono')
-    controlsMono.set({ opacity: 1, y: 0 })
+    // reset to initial state
+    setPhase('intro')
+    controlsMono.set({ opacity: 0 })
+    controlsLeft.set({ x: 0 })
+    controlsRight.set({ x: 0 })
 
-    const t1 = setTimeout(() => setPhase('vline'), 600) // slight delay after arrive
-    const t2 = setTimeout(() => setPhase('split'), 600 + 1000) // after line reaches bottom
-    const t3 = setTimeout(() => setPhase('hline'), 600 + 1000 + 450) // pause ~0.45s
-    const t4 = setTimeout(() => setPhase('copy'), 600 + 1000 + 450 + 350)
+    // Step 1: ELANOR fades in over 1.5s, hold 0.5s
+    controlsMono.start({ opacity: 1, transition: { duration: 1.5, ease: 'easeInOut' } })
 
-    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); clearTimeout(t4) }
-  }, [s2InView, seqStarted, controlsMono])
+    const t1 = setTimeout(() => setPhase('lineTop'), 2000) // 0-2.0s
+    const t2 = setTimeout(() => setPhase('cut'), 2500)     // 2.0-2.5s
+    const t3 = setTimeout(() => setPhase('split'), 3500)   // 2.5-3.5s
+    const t4 = setTimeout(() => setPhase('divider'), 4500) // 3.5-4.5s
+    const t5 = setTimeout(() => setPhase('quote'), 5000)   // 4.5-5.0s
+
+    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); clearTimeout(t4); clearTimeout(t5) }
+  }, [s2InView, seqStarted, controlsMono, controlsLeft, controlsRight])
 
   useEffect(() => {
     if (phase === 'split') {
-      // Instantly hide full mono to reveal halves cleanly
-      controlsMono.start({ opacity: 0, transition: { duration: 0.01 } })
-      // Sharp snap outward with slight recoil for both halves
-      controlsLeft.start({
-        x: [0, -36, -20],
-        filter: ['brightness(1)', 'brightness(1.15)', 'brightness(1)'],
-        transition: { duration: 0.38, times: [0, 0.5, 1], ease: [0.16, 1, 0.3, 1] }
-      })
-      controlsRight.start({
-        x: [0, 36, 20],
-        filter: ['brightness(1)', 'brightness(1.15)', 'brightness(1)'],
-        transition: { duration: 0.38, times: [0, 0.5, 1], ease: [0.16, 1, 0.3, 1] }
-      })
+      // Hide full word so halves are clean
+      controlsMono.start({ opacity: 0, transition: { duration: 0.05 } })
+      controlsLeft.start({ x: -200, transition: { duration: 1.0, ease: 'easeOut' } })
+      controlsRight.start({ x: 200, transition: { duration: 1.0, ease: 'easeOut' } })
     }
   }, [phase, controlsLeft, controlsRight, controlsMono])
 
@@ -240,7 +237,7 @@ export default function LandingHero({ onDone }) {
   const driftY = useTransform(s2Progress, [0, 1], [0, -30])
   const fadeOut = useTransform(s2Progress, [0, 0.8, 1], [1, 0.5, 0])
 
-  // Screen 3 (Brand Revelation) scroll dynamics
+  // Screen 3 dynamics
   const { scrollYProgress: s3Progress } = useScroll({ target: s3Ref, offset: ['start end', 'end start'] })
   const s3Drift = useTransform(s3Progress, [0, 1], [0, -30])
   const s3Blur = useTransform(s3Progress, [0, 0.8, 1], ['blur(0px)', 'blur(2px)', 'blur(6px)'])
@@ -259,7 +256,7 @@ export default function LandingHero({ onDone }) {
         </button>
       </div>
 
-      {/* Screen 1: The Void Entry */}
+      {/* Screen 1 */}
       <section ref={s1Ref} className="relative min-h-screen flex items-center justify-center overflow-hidden bg-black">
         <Grain />
         <Embers count={4} intensity={0.8} />
@@ -274,89 +271,97 @@ export default function LandingHero({ onDone }) {
         {showPrompt && <ScrollPrompt label="Descend" onClick={() => scrollTo(s2Ref)} />}
       </section>
 
-      {/* Screen 2: Brand Reveal with Blade Cut */}
+      {/* Screen 2: Brand Reveal with strict sequence */}
       <section ref={s2Ref} className="relative min-h-screen grid place-items-center overflow-hidden bg-black">
         <Grain />
         <Embers count={3} intensity={0.6} />
         <motion.div style={{ y: driftY, opacity: fadeOut }} className="relative w-full max-w-[1200px] mx-auto px-6 text-center select-none">
           <div className="relative inline-block">
-            {/* Full monogram (fades out on split) */}
+            {/* Full wordmark (fades in during intro; hidden when splitting) */}
             <motion.div animate={controlsMono} className="relative z-[1]">
-              <MonogramFull />
+              <Wordmark />
             </motion.div>
 
-            {/* Split monogram halves (become visible at split) */}
+            {/* Split halves shown from split onward */}
             <div className="pointer-events-none absolute inset-0 z-[2]">
               <motion.div
                 className="absolute inset-0"
-                animate={{ opacity: phase === 'split' || phase === 'hline' || phase === 'copy' ? 1 : 0 }}
+                animate={{ opacity: phase === 'split' || phase === 'divider' || phase === 'quote' ? 1 : 0 }}
                 transition={{ duration: 0.12 }}
               >
                 {/* Left half */}
                 <motion.div className="absolute inset-0 overflow-hidden" style={{ clipPath: 'inset(0 50% 0 0)' }} animate={controlsLeft}>
                   <div className="absolute inset-0 flex justify-center">
-                    <MonogramFull />
+                    <Wordmark />
                   </div>
                 </motion.div>
                 {/* Right half */}
                 <motion.div className="absolute inset-0 overflow-hidden" style={{ clipPath: 'inset(0 0 0 50%)' }} animate={controlsRight}>
                   <div className="absolute inset-0 flex justify-center">
-                    <MonogramFull />
+                    <Wordmark />
                   </div>
                 </motion.div>
               </motion.div>
             </div>
 
-            {/* Vertical red blade traveling down */}
+            {/* Red blade/line element following sequence */}
             <AnimatePresence>
-              {phase === 'vline' && (
+              {(phase === 'lineTop' || phase === 'cut' || phase === 'split' || phase === 'divider' || phase === 'quote') && (
                 <motion.div
                   key="blade"
-                  className="absolute left-1/2 -translate-x-1/2 top-0 w-[2px] z-[3]"
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: '100%', opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 1.0, ease: [0.22, 1, 0.36, 1] }}
-                  style={{ background: 'linear-gradient(to bottom, rgba(196,30,58,0), rgba(196,30,58,0.95), rgba(196,30,58,0))', boxShadow: '0 0 22px rgba(196,30,58,0.65)' }}
-                />
-              )}
-            </AnimatePresence>
-
-            {/* Impact flash right when the blade completes the cut */}
-            <AnimatePresence>
-              {phase === 'split' && (
-                <motion.div
-                  key="impact"
-                  className="absolute left-1/2 -translate-x-1/2 top-0 bottom-0 z-[4]"
+                  className="absolute z-[3]"
                   initial={{ opacity: 0 }}
-                  animate={{ opacity: [0, 1, 0] }}
-                  transition={{ duration: 0.18, times: [0, 0.4, 1], ease: 'easeOut' }}
-                  style={{ width: 4, background: 'radial-gradient(circle, rgba(255,255,255,0.28) 0%, rgba(196,30,58,0.85) 40%, rgba(196,30,58,0.0) 70%)', filter: 'blur(1px)' }}
-                />
-              )}
-            </AnimatePresence>
-
-            {/* Horizontal divider expansion beneath */}
-            <AnimatePresence>
-              {(phase === 'hline' || phase === 'copy') && (
-                <motion.div
-                  key="hline"
-                  className="absolute left-1/2 -translate-x-1/2 top-full mt-6 h-[2px] z-[2]"
-                  initial={{ width: 0, opacity: 0 }}
-                  animate={{ width: '80%', opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.6, ease: 'easeOut' }}
-                  style={{ background: 'linear-gradient(to right, rgba(196,30,58,0), rgba(196,30,58,0.9), rgba(196,30,58,0))', boxShadow: '0 0 16px rgba(196,30,58,0.45)' }}
+                  animate={(() => {
+                    if (phase === 'lineTop') {
+                      // Horizontal line near top
+                      return {
+                        opacity: 1,
+                        top: -50, // 50px above wordmark container top
+                        left: '50%',
+                        x: '-50%',
+                        y: 0,
+                        width: '40%',
+                        height: 2,
+                        rotate: 0,
+                      }
+                    }
+                    if (phase === 'cut' || phase === 'split') {
+                      // Vertical line through center, full height
+                      return {
+                        opacity: 1,
+                        top: 0,
+                        left: '50%',
+                        x: '-50%',
+                        y: 0,
+                        width: 2,
+                        height: '100%',
+                        rotate: 90,
+                      }
+                    }
+                    // Divider: horizontal full-width centered
+                    return {
+                      opacity: 1,
+                      top: '50%',
+                      left: '50%',
+                      x: '-50%',
+                      y: '-50%',
+                      width: '100%',
+                      height: 2,
+                      rotate: 0,
+                    }
+                  })()}
+                  transition={{ duration: phase === 'lineTop' ? 0.5 : (phase === 'cut' ? 1.0 : 0.5), ease: 'easeInOut' }}
+                  style={{ background: 'linear-gradient(to bottom, rgba(139,0,0,0), rgba(139,0,0,0.95), rgba(139,0,0,0))' }}
                 />
               )}
             </AnimatePresence>
           </div>
 
-          {/* Copy below divider */}
+          {/* Quote below divider */}
           <AnimatePresence>
-            {phase === 'copy' && (
-              <motion.div key="copy" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }} className="mt-10">
-                <p className="text-zinc-200 italic font-semibold" style={{ fontSize: 'clamp(22px, 3.5vw, 36px)' }}>
+            {phase === 'quote' && (
+              <motion.div key="copy" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 1.0 }} className="mt-10">
+                <p className="text-zinc-100 italic font-semibold" style={{ fontSize: 'clamp(32px, 3.5vw, 36px)' }}>
                   Seven scents. Seven temptations. Unapologetically yours.
                 </p>
               </motion.div>
@@ -366,7 +371,7 @@ export default function LandingHero({ onDone }) {
         <ScrollPrompt label="Descend into temptation" onClick={() => scrollTo(s3Ref)} />
       </section>
 
-      {/* Screen 3: Brand Revelation (Completely Revised) */}
+      {/* Screen 3 */}
       <section ref={s3Ref} className="relative min-h-screen flex items-center justify-center overflow-hidden" style={{ background: 'linear-gradient(180deg, #0A0A0A 0%, #1A0B0F 100%)' }}>
         {/* Marble texture */}
         <div className="absolute inset-0 opacity-[0.08]" style={{ backgroundImage: 'url(https://images.unsplash.com/photo-1760764541302-e3955fbc6b2b?ixid=M3w3OTkxMTl8MHwxfHNlYXJjaHwxfHxjZXJhbWljJTIwcG90dGVyeSUyMGhhbmRtYWRlfGVufDB8MHx8fDE3NjM0MTE5NzJ8MA&ixlib=rb-4.1.0&w=1600&auto=format&fit=crop&q=80)', backgroundSize: 'cover', backgroundPosition: 'center' }} />
@@ -445,7 +450,7 @@ export default function LandingHero({ onDone }) {
         <ScrollPrompt onClick={() => scrollTo(s4Ref)} />
       </section>
 
-      {/* Screen 4: The Concept (Simplified) */}
+      {/* Screen 4 */}
       <section ref={s4Ref} className="relative min-h-screen grid place-items-center overflow-hidden">
         <Grain />
         <div className="text-center px-8 max-w-5xl">
@@ -496,7 +501,7 @@ export default function LandingHero({ onDone }) {
         <ScrollPrompt onClick={() => scrollTo(s5Ref)} />
       </section>
 
-      {/* Screen 5: Craftsmanship */}
+      {/* Screen 5 */}
       <section ref={s5Ref} className="relative min-h-screen flex items-center justify-center overflow-hidden">
         <Grain />
         <div className="grid grid-cols-1 md:grid-cols-3 gap-10 md:gap-16 px-8 max-w-6xl">
@@ -507,7 +512,7 @@ export default function LandingHero({ onDone }) {
         <ScrollPrompt label="Descend" onClick={() => scrollTo(s6Ref)} />
       </section>
 
-      {/* Screen 6: Transition to constellation */}
+      {/* Screen 6 */}
       <section ref={s6Ref} className="relative min-h-screen grid place-items-center overflow-hidden bg-black">
         <Embers count={10} intensity={1.4} />
         <Smoke opacity={0.5} />
@@ -560,26 +565,22 @@ function Typewriter({ text }) {
   )
 }
 
-function MonogramFull() {
+// Refined ELANOR wordmark with letterpress feel
+function Wordmark() {
   const letters = 'ELANOR'.split('')
   return (
-    <div className="font-[Cinzel] tracking-[0.18em] leading-none" style={{ fontSize: 'clamp(140px, 14vw, 180px)' }}>
+    <div className="font-[Cinzel] tracking-[0.12em] leading-none" style={{ fontSize: 'clamp(140px, 14vw, 180px)', color: '#F5F3F0' }}>
       {letters.map((ch, i) => (
-        <motion.span
+        <span
           key={i}
-          initial={{ opacity: 0, y: 8, filter: 'blur(4px)' }}
-          animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-          transition={{ delay: i * 0.12, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
           style={{
             display: 'inline-block',
-            color: '#fff',
-            textShadow: '0 1px 0 rgba(255,255,255,0.02), 0 0 40px rgba(139,0,0,0.25), 0 0 8px rgba(139,0,0,0.2)',
-            WebkitTextStroke: '0.5px rgba(0,0,0,0.35)',
-            filter: 'drop-shadow(0 8px 20px rgba(0,0,0,0.6))',
+            textShadow: '0 1px 0 rgba(0,0,0,0.6), 0 2px 6px rgba(0,0,0,0.45), 0 -1px 0 rgba(255,255,255,0.06)',
+            WebkitTextStroke: '0.3px rgba(0,0,0,0.35)'
           }}
         >
           {ch}
-        </motion.span>
+        </span>
       ))}
     </div>
   )
