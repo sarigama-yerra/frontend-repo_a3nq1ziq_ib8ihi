@@ -91,6 +91,7 @@ function ScrollPrompt({ label = 'Descend', onClick }) {
 }
 
 export default function LandingHero({ onDone }) {
+  const heroRef = useRef(null)
   const s1Ref = useRef(null)
   const s2Ref = useRef(null)
   const s3Ref = useRef(null)
@@ -111,6 +112,50 @@ export default function LandingHero({ onDone }) {
 
   const scrollTo = (ref) => ref?.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 
+  // Section-step wheel handler to avoid big native jumps
+  const [isNavigating, setIsNavigating] = useState(false)
+  useEffect(() => {
+    const node = heroRef.current
+    if (!node) return
+
+    const refs = [s1Ref, s2Ref, s3Ref, s4Ref, s5Ref]
+    const getCurrentIndex = () => {
+      const mid = window.innerHeight / 2
+      let best = 0
+      let bestDist = Infinity
+      refs.forEach((r, i) => {
+        const rect = r.current?.getBoundingClientRect()
+        if (!rect) return
+        const dist = Math.abs((rect.top + rect.height / 2) - mid)
+        if (dist < bestDist) { bestDist = dist; best = i }
+      })
+      return best
+    }
+
+    const onWheel = (e) => {
+      // Only intercept while hero is on screen
+      const heroRect = node.getBoundingClientRect()
+      const heroOnScreen = heroRect.bottom > 0 && heroRect.top < window.innerHeight
+      if (!heroOnScreen) return
+
+      if (isNavigating) { e.preventDefault(); return }
+      const delta = e.deltaY
+      if (Math.abs(delta) < 8) return
+      e.preventDefault()
+
+      const idx = getCurrentIndex()
+      const nextIdx = delta > 0 ? Math.min(idx + 1, refs.length - 1) : Math.max(idx - 1, 0)
+      if (nextIdx !== idx) {
+        setIsNavigating(true)
+        refs[nextIdx].current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        setTimeout(() => setIsNavigating(false), 900)
+      }
+    }
+
+    node.addEventListener('wheel', onWheel, { passive: false })
+    return () => node.removeEventListener('wheel', onWheel)
+  }, [isNavigating])
+
   // Final wipe to constellation
   const [wiping, setWiping] = useState(false)
   const handleFinalSplit = () => {
@@ -123,8 +168,11 @@ export default function LandingHero({ onDone }) {
     }, 1200)
   }
 
+  // Only arm the bleed when the final screen is actually in view
+  const s5InView = useInView(s5Ref, { amount: 0.6 })
+
   return (
-    <div className="relative w-full text-white bg-black">
+    <div ref={heroRef} className="relative w-full text-white bg-black">
       {/* Screen 1: The Void Entry */}
       <section ref={s1Ref} className="relative min-h-screen flex items-center justify-center overflow-hidden">
         <Grain />
@@ -236,7 +284,7 @@ export default function LandingHero({ onDone }) {
         </div>
 
         {/* Ink bleed screen split */}
-        <InkBleedTrigger active={allowBleed} onComplete={handleFinalSplit} />
+        <InkBleedTrigger active={allowBleed && s5InView} onComplete={handleFinalSplit} />
       </section>
     </div>
   )
@@ -394,13 +442,14 @@ function InkBleedTrigger({ active, onComplete }) {
   const [started, setStarted] = useState(false)
   useEffect(() => {
     if (!active || started) return
-    const onScroll = () => {
+    const onScroll = (e) => {
       if (!started) {
+        e.preventDefault && e.preventDefault()
         setStarted(true)
         setTimeout(() => onComplete && onComplete(), 1000)
       }
     }
-    window.addEventListener('wheel', onScroll, { passive: true })
+    window.addEventListener('wheel', onScroll, { passive: false })
     window.addEventListener('keydown', onScroll)
     return () => {
       window.removeEventListener('wheel', onScroll)
