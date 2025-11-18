@@ -198,21 +198,30 @@ export default function LandingHero({ onDone }) {
   const controlsRight = useAnimation()
   const controlsMono = useAnimation()
 
+  // Trigger the Screen 2 timeline ONLY when Screen 2 actually enters the viewport
+  const s2InView = useInView(s2Ref, { amount: 0.6 })
+  const [seqStarted, setSeqStarted] = useState(false)
   useEffect(() => {
-    // Start: show monogram
-    controlsMono.start({ opacity: 1, y: 0 })
-    const t1 = setTimeout(() => setPhase('vline'), 1500)
-    const t2 = setTimeout(() => setPhase('split'), 1500 + 1000) // after line reaches bottom
-    const t3 = setTimeout(() => setPhase('hline'), 1500 + 1000 + 500) // pause 0.5s
-    const t4 = setTimeout(() => setPhase('copy'), 1500 + 1000 + 500 + 400)
+    if (!s2InView || seqStarted) return
+    setSeqStarted(true)
+
+    // reset
+    setPhase('mono')
+    controlsMono.set({ opacity: 1, y: 0 })
+
+    const t1 = setTimeout(() => setPhase('vline'), 600) // slight delay after arrive
+    const t2 = setTimeout(() => setPhase('split'), 600 + 1000) // after line reaches bottom
+    const t3 = setTimeout(() => setPhase('hline'), 600 + 1000 + 450) // pause ~0.45s
+    const t4 = setTimeout(() => setPhase('copy'), 600 + 1000 + 450 + 350)
+
     return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); clearTimeout(t4) }
-  }, [])
+  }, [s2InView, seqStarted, controlsMono])
 
   useEffect(() => {
     if (phase === 'split') {
       // Instantly hide full mono to reveal halves cleanly
       controlsMono.start({ opacity: 0, transition: { duration: 0.01 } })
-      // Add a sharp snap outward with slight recoil for both halves
+      // Sharp snap outward with slight recoil for both halves
       controlsLeft.start({
         x: [0, -36, -20],
         filter: ['brightness(1)', 'brightness(1.15)', 'brightness(1)'],
