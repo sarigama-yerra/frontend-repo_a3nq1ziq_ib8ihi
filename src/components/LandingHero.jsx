@@ -82,151 +82,32 @@ function ScrollPrompt({ label = 'Descend', onClick }) {
   )
 }
 
-// Page 1 Typewriter (auto, no mouse required)
-function TypewriterIntro({ text, onPromptReady }) {
-  const [started, setStarted] = useState(false)
-  const [showCursor, setShowCursor] = useState(false)
-  const [shownCount, setShownCount] = useState(0)
-
-  useEffect(() => {
-    // Simulate DOMContentLoaded -> component mount is sufficient
-    setStarted(true)
-    const c1 = setTimeout(() => setShowCursor(true), 500) // cursor appears at 0.5s
-    let typingTimer
-    const c2 = setTimeout(() => { // start typing at 1.0s
-      const step = () => {
-        setShownCount((n) => {
-          if (n < text.length) {
-            return n + 1
-          } else {
-            return n
-          }
-        })
-        const next = 80 + Math.floor(Math.random() * 20) // 80-100ms
-        typingTimer = setTimeout(step, next)
-      }
-      step()
-    }, 1000)
-
-    // After 3s total, show prompt (even while typing continues on long strings)
-    const p = setTimeout(() => onPromptReady && onPromptReady(), 3000)
-
-    return () => { clearTimeout(c1); clearTimeout(c2); clearTimeout(p); typingTimer && clearTimeout(typingTimer) }
-  }, [text, onPromptReady])
-
-  const letters = text.split('')
-  return (
-    <div className="relative text-center">
-      <div className="font-[Cinzel] font-semibold leading-tight" style={{ fontSize: 'clamp(40px, 7vw, 72px)' }}>
-        {letters.map((ch, i) => (
-          <motion.span
-            key={i}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: i < shownCount ? 1 : 0 }}
-            transition={{ duration: 0.15 }}
-            style={{
-              display: 'inline-block',
-              letterSpacing: '0.02em',
-              color: '#FFF',
-              textShadow: i < shownCount ? `0 0 ${8 + i * 0.2}px rgba(196,30,58,${0.35 + Math.min(0.4, i / letters.length)})` : 'none',
-            }}
-          >
-            {ch === ' ' ? '\u00A0' : ch}
-          </motion.span>
-        ))}
-        {/* Cursor */}
-        <motion.span
-          initial={{ opacity: 0 }}
-          animate={{ opacity: showCursor ? [1, 0, 1] : 0 }}
-          transition={{ duration: 0.9, repeat: Infinity }}
-          className="inline-block"
-          style={{ width: '0.6ch', marginLeft: 2 }}
-        >
-          |
-        </motion.span>
-      </div>
-    </div>
-  )
-}
-
-// Stage rays (auto animated, no cursor)
-function LightRays() {
-  return (
-    <div className="pointer-events-none absolute inset-0">
-      <motion.div
-        className="absolute -top-1/4 -left-1/4 w-[80%] h-[80%]"
-        style={{ background: 'conic-gradient(from 200deg, rgba(220,20,60,0.12), transparent 40%)', filter: 'blur(10px)' }}
-        animate={{ rotate: [0, 15, 0] }}
-        transition={{ duration: 15, repeat: Infinity, ease: 'easeInOut' }}
-      />
-      <motion.div
-        className="absolute -top-1/4 -right-1/4 w-[80%] h-[80%]"
-        style={{ background: 'conic-gradient(from 340deg, rgba(220,20,60,0.12), transparent 40%)', filter: 'blur(10px)' }}
-        animate={{ rotate: [0, -15, 0] }}
-        transition={{ duration: 15, repeat: Infinity, ease: 'easeInOut' }}
-      />
-    </div>
-  )
-}
-
-// Falling gold sparks (shown during split)
-function GoldFall({ active = false }) {
-  const parts = useMemo(() => Array.from({ length: 24 }).map((_, i) => ({
-    id: i,
-    left: Math.random() * 100,
-    size: 1 + Math.random() * 2.5,
-    delay: Math.random() * 0.5,
-    dur: 1.2 + Math.random() * 0.8,
-  })), [])
-  if (!active) return null
-  return (
-    <div className="pointer-events-none absolute inset-0">
-      {parts.map(p => (
-        <motion.div
-          key={p.id}
-          className="absolute"
-          style={{ left: `${p.left}%`, top: '-2%' }}
-          initial={{ y: 0, opacity: 0 }}
-          animate={{ y: '110%', opacity: [0, 1, 0] }}
-          transition={{ duration: p.dur, ease: 'easeIn', delay: p.delay }}
-        >
-          <div style={{ width: p.size, height: p.size, borderRadius: '50%', background: 'rgba(232,197,71,0.9)', filter: 'blur(0.5px) drop-shadow(0 0 8px rgba(232,197,71,0.4))' }} />
-        </motion.div>
-      ))}
-    </div>
-  )
-}
-
 export default function LandingHero({ onDone }) {
   const heroRef = useRef(null)
-  const s1Ref = useRef(null)
-  const s2Ref = useRef(null)
   const s3Ref = useRef(null)
   const s4Ref = useRef(null)
   const s5Ref = useRef(null)
   const s6Ref = useRef(null)
 
-  const [showPrompt, setShowPrompt] = useState(false)
   const [allowBleed, setAllowBleed] = useState(false)
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
       window.scrollTo({ top: 0, behavior: 'auto' })
     }
-    // Allow final screen wipe after a bit
     const arm = setTimeout(() => setAllowBleed(true), 2500)
     return () => { clearTimeout(arm) }
   }, [])
 
   const scrollTo = (ref) => ref?.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 
-  // Wheel step navigation within hero cluster
+  // Wheel step navigation within hero cluster (Screens 3-6 only)
   const [isNavigating, setIsNavigating] = useState(false)
   useEffect(() => {
     const node = heroRef.current
     if (!node) return
 
-    const refs = [s1Ref, s2Ref, s3Ref, s4Ref, s5Ref, s6Ref]
+    const refs = [s3Ref, s4Ref, s5Ref, s6Ref]
     const getCurrentIndex = () => {
       const mid = (typeof window !== 'undefined' ? window.innerHeight : 800) / 2
       let best = 0
@@ -283,75 +164,6 @@ export default function LandingHero({ onDone }) {
 
   const s6InView = useInView(s6Ref, { amount: 0.6 })
 
-  // Screen 2 timeline flags (explicit, deterministic, no mouse influence)
-  const s2InView = useInView(s2Ref, { amount: 0.2 })
-  const [seqStarted, setSeqStarted] = useState(false)
-  const [showWordmark, setShowWordmark] = useState(false)
-  const [showTopLine, setShowTopLine] = useState(false)
-  const [cutting, setCutting] = useState(false)
-  const [splitting, setSplitting] = useState(false)
-  const [showDivider, setShowDivider] = useState(false)
-  const [showQuote, setShowQuote] = useState(false)
-  const [impactShake, setImpactShake] = useState(false)
-
-  const controlsLeft = useAnimation()
-  const controlsRight = useAnimation()
-
-  // Fallback start even if inView doesn't fire
-  useEffect(() => {
-    if (seqStarted) return
-    const earlyKick = setTimeout(() => {
-      if (!seqStarted) startS2Sequence()
-    }, 800)
-    return () => clearTimeout(earlyKick)
-  }, [seqStarted])
-
-  useEffect(() => {
-    if (!s2InView || seqStarted) return
-    startS2Sequence()
-  }, [s2InView, seqStarted])
-
-  const startS2Sequence = () => {
-    setSeqStarted(true)
-    setShowWordmark(false)
-    setShowTopLine(false)
-    setCutting(false)
-    setSplitting(false)
-    setShowDivider(false)
-    setShowQuote(false)
-    setImpactShake(false)
-    controlsLeft.set({ x: 0, rotateY: 0 })
-    controlsRight.set({ x: 0, rotateY: 0 })
-
-    // 0-2.0s: Wordmark fade in
-    setShowWordmark(true)
-
-    // 2.0-2.5s: Horizontal red line
-    const t1 = setTimeout(() => setShowTopLine(true), 2000)
-    // 2.5-3.5s: Drop line + impact shake at end
-    const t2 = setTimeout(() => { setShowTopLine(false); setCutting(true) }, 2500)
-    const t2b = setTimeout(() => { setImpactShake(true); setTimeout(() => setImpactShake(false), 180) }, 3500)
-    // 3.5-4.5s: Split halves with slight outward tilt
-    const t3 = setTimeout(() => {
-      setCutting(false)
-      setSplitting(true)
-      controlsLeft.start({ x: -200, rotateY: -5, transition: { duration: 1.0, ease: 'easeOut' } })
-      controlsRight.start({ x: 200, rotateY: 5, transition: { duration: 1.0, ease: 'easeOut' } })
-    }, 3500)
-    // 4.5-5.0s: Divider horizontal
-    const t4 = setTimeout(() => { setSplitting(false); setShowDivider(true) }, 4500)
-    // 5.0-6.0s: Quote fade in
-    const t5 = setTimeout(() => setShowQuote(true), 5000)
-
-    const cleaners = [t1, t2, t2b, t3, t4, t5]
-    return () => cleaners.forEach(clearTimeout)
-  }
-
-  // Scroll-driven fade on Screen 2 content (subtle)
-  const { scrollYProgress: s2Progress } = useScroll({ target: s2Ref, offset: ['start end', 'end start'] })
-  const driftY = useTransform(s2Progress, [0, 1], [0, -30])
-  const fadeOut = useTransform(s2Progress, [0, 0.8, 1], [1, 0.5, 0])
-
   // Screen 3 dynamics
   const { scrollYProgress: s3Progress } = useScroll({ target: s3Ref, offset: ['start end', 'end start'] })
   const s3Drift = useTransform(s3Progress, [0, 1], [0, -30])
@@ -370,138 +182,6 @@ export default function LandingHero({ onDone }) {
           Choose Your Guilty Pleasure
         </button>
       </div>
-
-      {/* Screen 1: Black screen + typewriter */}
-      <section ref={s1Ref} className="relative min-h-screen flex items-center justify-center overflow-hidden bg-black">
-        <div className="absolute inset-0" />
-        <div className="relative z-10 px-6">
-          <TypewriterIntro
-            text="Ready to indulge in sin?"
-            onPromptReady={() => setShowPrompt(true)}
-          />
-        </div>
-        {showPrompt && <ScrollPrompt label="Descend" onClick={() => scrollTo(s2Ref)} />}
-      </section>
-
-      {/* Screen 2: Brand Reveal (no cursor effects) */}
-      <section ref={s2Ref} className="relative min-h-screen grid place-items-center overflow-hidden" style={{ background: 'radial-gradient(60% 60% at 50% 50%, #2b0a12 0%, #090709 70%, #000 100%)' }}>
-        <LightRays />
-        {/* Gothic fog rolling across bottom */}
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-1/2 opacity-60">
-          <Smoke opacity={0.25} bottom />
-        </div>
-        {/* Faint cathedral arches */}
-        <motion.div className="pointer-events-none absolute inset-0" initial={{ scale: 1, opacity: 0.04 }} animate={{ scale: splitting ? 1.1 : 1, opacity: 0.06 }} transition={{ duration: 0.8 }}>
-          <svg className="absolute inset-0" width="100%" height="100%" viewBox="0 0 1200 800" preserveAspectRatio="none">
-            <path d="M0,800 Q600,100 1200,800" stroke="#ffffff" strokeOpacity="0.6" strokeWidth="2" fill="none" />
-            <path d="M0,800 Q600,160 1200,800" stroke="#ffffff" strokeOpacity="0.6" strokeWidth="2" fill="none" />
-          </svg>
-        </motion.div>
-        {/* Ambient embers */}
-        <Embers count={6} intensity={0.8} />
-
-        <Grain />
-        <GoldFall active={splitting} />
-
-        <motion.div style={{ y: driftY, opacity: fadeOut }} className="relative w-full max-w-[1200px] mx-auto px-6 text-center select-none">
-          <motion.div animate={impactShake ? { y: [0, -2, 1, -1, 0] } : {}} transition={{ duration: 0.18 }} className="relative inline-block">
-            {/* Full wordmark (fades in 0-2s) */}
-            <AnimatePresence>
-              {showWordmark && (
-                <motion.div
-                  key="wm"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 1.5, ease: 'easeInOut' }}
-                  className="relative z-[1]"
-                >
-                  <WordmarkClean />
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            {/* Split halves (visible during split/divider/quote) */}
-            <div className="pointer-events-none absolute inset-0 z-[2]">
-              <motion.div className="absolute inset-0" animate={{ opacity: splitting || showDivider || showQuote ? 1 : 0 }} transition={{ duration: 0.12 }}>
-                <motion.div className="absolute inset-0 overflow-hidden" style={{ clipPath: 'inset(0 50% 0 0)' }}>
-                  <motion.div animate={controlsLeft} className="absolute inset-0">
-                    <div className="absolute inset-0 flex justify-center"><WordmarkClean /></div>
-                  </motion.div>
-                </motion.div>
-                <motion.div className="absolute inset-0 overflow-hidden" style={{ clipPath: 'inset(0 0 0 50%)' }}>
-                  <motion.div animate={controlsRight} className="absolute inset-0">
-                    <div className="absolute inset-0 flex justify-center"><WordmarkClean /></div>
-                  </motion.div>
-                </motion.div>
-              </motion.div>
-            </div>
-
-            {/* Top horizontal crimson line (2.0-2.5s) */}
-            <AnimatePresence>
-              {showTopLine && (
-                <motion.div
-                  key="topline"
-                  className="absolute left-1/2 -translate-x-1/2"
-                  initial={{ opacity: 0, width: 0 }}
-                  animate={{ opacity: 1, width: '40%' }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.5, ease: 'easeInOut' }}
-                  style={{ top: -50, height: 3, background: '#DC143C', boxShadow: '0 0 18px rgba(220,20,60,0.8)' }}
-                />
-              )}
-            </AnimatePresence>
-
-            {/* Vertical cutting line (2.5-3.5s) with glowing trail */}
-            <AnimatePresence>
-              {cutting && (
-                <motion.div key="cutwrap" className="absolute left-1/2 -translate-x-1/2 top-0 w-[3px] z-[3]">
-                  <motion.div
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: '100%', opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ duration: 1.0, ease: 'easeInOut' }}
-                    style={{ background: 'linear-gradient(to bottom, rgba(220,20,60,0), rgba(220,20,60,1), rgba(220,20,60,0))', boxShadow: '0 0 30px rgba(220,20,60,0.9)' }}
-                  />
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            {/* Divider horizontal (4.5-5.0s) with pulse */}
-            <AnimatePresence>
-              {showDivider && (
-                <motion.div
-                  key="divider"
-                  className="absolute left-1/2 -translate-x-1/2 top-full mt-6 h-[5px] z-[2]"
-                  initial={{ width: 0, opacity: 0 }}
-                  animate={{ width: '100%', opacity: 1, filter: ['brightness(0.8)', 'brightness(1.2)', 'brightness(1.0)'] }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.6, ease: 'easeOut' }}
-                  style={{ background: '#DC143C', boxShadow: '0 0 22px rgba(220,20,60,0.8)' }}
-                />
-              )}
-            </AnimatePresence>
-          </motion.div>
-
-          {/* Quote below divider (5.0-6.0s) */}
-          <AnimatePresence>
-            {showQuote && (
-              <motion.div key="copy" initial={{ opacity: 0, y: 10, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ duration: 1.0 }} className="mt-10">
-                <p className="text-zinc-100 italic font-semibold" style={{ fontFamily: 'Cormorant Garamond, serif', fontSize: 'clamp(28px, 3.5vw, 38px)', textShadow: '0 0 10px rgba(212,175,55,0.25)' }}>
-                  Seven scents. Seven temptations. Unapologetically yours.
-                </p>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </motion.div>
-
-        {/* Resting state: gentle divider pulse */}
-        <AnimatePresence>
-          {showDivider && !showQuote && (
-            <motion.div className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-1/2 w-1/2 h-[5px]" animate={{ filter: ['brightness(0.9)', 'brightness(1.05)', 'brightness(0.9)'] }} transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut' }} style={{ background: 'transparent' }} />
-          )}
-        </AnimatePresence>
-      </section>
 
       {/* Screen 3 */}
       <section ref={s3Ref} className="relative min-h-screen flex items-center justify-center overflow-hidden" style={{ background: 'linear-gradient(180deg, #0A0A0A 0%, #1A0B0F 100%)' }}>
@@ -698,15 +378,6 @@ function GoldParticles({ count = 24 }) {
           <div style={{ width: p.size, height: p.size, background: 'rgba(232,197,71,0.8)', filter: 'blur(1px) drop-shadow(0 0 6px rgba(232,197,71,0.3))' }} />
         </motion.div>
       ))}
-    </div>
-  )
-}
-
-// Clean ELANOR wordmark (no overlap, proper kerning, gold edge glow)
-function WordmarkClean() {
-  return (
-    <div className="font-[Cinzel] leading-none select-none" style={{ fontSize: 'clamp(120px, 12vw, 160px)', color: '#FFFFFF', letterSpacing: '0.05em', textShadow: '0 1px 0 rgba(0,0,0,0.6), 0 2px 6px rgba(0,0,0,0.45), 0 0 14px rgba(212,175,55,0.35)' }}>
-      ELANOR
     </div>
   )
 }
