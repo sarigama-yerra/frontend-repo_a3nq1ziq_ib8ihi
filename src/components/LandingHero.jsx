@@ -210,10 +210,19 @@ export default function LandingHero({ onDone }) {
 
   useEffect(() => {
     if (phase === 'split') {
-      // Hide full mono, show halves moving outward quickly to suggest slicing
-      controlsMono.start({ opacity: 0, transition: { duration: 0.2 } })
-      controlsLeft.start({ x: -22, transition: { duration: 0.35, ease: [0.22, 1, 0.36, 1] } })
-      controlsRight.start({ x: 22, transition: { duration: 0.35, ease: [0.22, 1, 0.36, 1] } })
+      // Instantly hide full mono to reveal halves cleanly
+      controlsMono.start({ opacity: 0, transition: { duration: 0.01 } })
+      // Add a sharp snap outward with slight recoil for both halves
+      controlsLeft.start({
+        x: [0, -36, -20],
+        filter: ['brightness(1)', 'brightness(1.15)', 'brightness(1)'],
+        transition: { duration: 0.38, times: [0, 0.5, 1], ease: [0.16, 1, 0.3, 1] }
+      })
+      controlsRight.start({
+        x: [0, 36, 20],
+        filter: ['brightness(1)', 'brightness(1.15)', 'brightness(1)'],
+        transition: { duration: 0.38, times: [0, 0.5, 1], ease: [0.16, 1, 0.3, 1] }
+      })
     }
   }, [phase, controlsLeft, controlsRight, controlsMono])
 
@@ -263,16 +272,16 @@ export default function LandingHero({ onDone }) {
         <motion.div style={{ y: driftY, opacity: fadeOut }} className="relative w-full max-w-[1200px] mx-auto px-6 text-center select-none">
           <div className="relative inline-block">
             {/* Full monogram (fades out on split) */}
-            <motion.div animate={controlsMono} className="relative">
+            <motion.div animate={controlsMono} className="relative z-[1]">
               <MonogramFull />
             </motion.div>
 
             {/* Split monogram halves (become visible at split) */}
-            <div className="pointer-events-none absolute inset-0">
+            <div className="pointer-events-none absolute inset-0 z-[2]">
               <motion.div
                 className="absolute inset-0"
                 animate={{ opacity: phase === 'split' || phase === 'hline' || phase === 'copy' ? 1 : 0 }}
-                transition={{ duration: 0.2 }}
+                transition={{ duration: 0.12 }}
               >
                 {/* Left half */}
                 <motion.div className="absolute inset-0 overflow-hidden" style={{ clipPath: 'inset(0 50% 0 0)' }} animate={controlsLeft}>
@@ -294,7 +303,7 @@ export default function LandingHero({ onDone }) {
               {phase === 'vline' && (
                 <motion.div
                   key="blade"
-                  className="absolute left-1/2 -translate-x-1/2 top-0 w-[2px]"
+                  className="absolute left-1/2 -translate-x-1/2 top-0 w-[2px] z-[3]"
                   initial={{ height: 0, opacity: 0 }}
                   animate={{ height: '100%', opacity: 1 }}
                   exit={{ opacity: 0 }}
@@ -304,12 +313,26 @@ export default function LandingHero({ onDone }) {
               )}
             </AnimatePresence>
 
+            {/* Impact flash right when the blade completes the cut */}
+            <AnimatePresence>
+              {phase === 'split' && (
+                <motion.div
+                  key="impact"
+                  className="absolute left-1/2 -translate-x-1/2 top-0 bottom-0 z-[4]"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: [0, 1, 0] }}
+                  transition={{ duration: 0.18, times: [0, 0.4, 1], ease: 'easeOut' }}
+                  style={{ width: 4, background: 'radial-gradient(circle, rgba(255,255,255,0.28) 0%, rgba(196,30,58,0.85) 40%, rgba(196,30,58,0.0) 70%)', filter: 'blur(1px)' }}
+                />
+              )}
+            </AnimatePresence>
+
             {/* Horizontal divider expansion beneath */}
             <AnimatePresence>
               {(phase === 'hline' || phase === 'copy') && (
                 <motion.div
                   key="hline"
-                  className="absolute left-1/2 -translate-x-1/2 top-full mt-6 h-[2px]"
+                  className="absolute left-1/2 -translate-x-1/2 top-full mt-6 h-[2px] z-[2]"
                   initial={{ width: 0, opacity: 0 }}
                   animate={{ width: '80%', opacity: 1 }}
                   exit={{ opacity: 0 }}
