@@ -1,5 +1,5 @@
-import { useMemo, useRef } from 'react'
-import { motion, useMotionValue, useSpring } from 'framer-motion'
+import { useMemo } from 'react'
+import { motion } from 'framer-motion'
 
 const sins = [
   { key: 'wrath', name: 'WRATH', color: '#8B0000', notes: 'Leather · Blood Orange · Incense', desc: 'Vengeance incarnate. Leather, blood orange, smoldering incense.' },
@@ -12,11 +12,6 @@ const sins = [
 ]
 
 export default function SinsConstellation({ onSelect }) {
-  const mouseX = useMotionValue(0)
-  const mouseY = useMotionValue(0)
-  const x = useSpring(mouseX, { stiffness: 50, damping: 20 })
-  const y = useSpring(mouseY, { stiffness: 50, damping: 20 })
-
   const positions = useMemo(() => {
     // Arrange in a heptagram-like radial layout
     const r = 220
@@ -24,38 +19,37 @@ export default function SinsConstellation({ onSelect }) {
     const cy = 0
     return sins.map((s, i) => {
       const a = (i / sins.length) * Math.PI * 2 - Math.PI / 2
-      return { ...s, x: cx + Math.cos(a) * r, y: cy + Math.sin(a) * r }
+      return { ...s, x: cx + Math.cos(a) * r, y: cy + Math.sin(a) * r, idx: i }
     })
   }, [])
 
-  const handleMove = (e) => {
-    const rect = e.currentTarget.getBoundingClientRect()
-    mouseX.set(e.clientX - rect.left - rect.width / 2)
-    mouseY.set(e.clientY - rect.top - rect.height / 2)
-  }
-
   return (
-    <section className="relative min-h-screen bg-black text-white overflow-hidden">
-      <div className="absolute inset-0 grid place-items-center" onMouseMove={handleMove}>
-        <motion.svg width="100%" height="100%" viewBox="-400 -400 800 800" className="opacity-70">
+    <section id="constellation" className="relative min-h-screen bg-black text-white overflow-hidden">
+      <div className="absolute inset-0 grid place-items-center">
+        <motion.svg width="100%" height="100%" viewBox="-400 -400 800 800">
+          {/* Subtle aurora background */}
+          <defs>
+            <radialGradient id="a" cx="50%" cy="45%" r="60%">
+              <stop offset="0%" stopColor="rgba(196,30,58,0.12)" />
+              <stop offset="100%" stopColor="transparent" />
+            </radialGradient>
+          </defs>
+          <rect x="-400" y="-400" width="800" height="800" fill="url(#a)" />
+
           {/* Connecting lines */}
-          <g stroke="rgba(255,255,255,0.15)" strokeWidth="1">
+          <g stroke="rgba(255,255,255,0.12)" strokeWidth="1">
             {positions.map((a, i) => (
               positions.map((b, j) => (
                 i < j ? (
-                  <motion.line key={`${i}-${j}`} x1={a.x} y1={a.y} x2={b.x} y2={b.y}
-                    style={{
-                      opacity: 0.2,
-                    }}
-                  />
+                  <motion.line key={`${i}-${j}`} x1={a.x} y1={a.y} x2={b.x} y2={b.y} style={{ opacity: 0.18 }} />
                 ) : null
               ))
             ))}
           </g>
 
-          {/* Nodes */}
+          {/* Nodes with staggered materialization */}
           {positions.map((s) => (
-            <Portal key={s.key} sin={s} onSelect={onSelect} x={x} y={y} />
+            <Portal key={s.key} sin={s} onSelect={onSelect} />
           ))}
         </motion.svg>
       </div>
@@ -64,7 +58,7 @@ export default function SinsConstellation({ onSelect }) {
   )
 }
 
-function Portal({ sin, onSelect, x, y }) {
+function Portal({ sin, onSelect }) {
   const hover = {
     scale: 1.1,
     filter: `drop-shadow(0 0 30px ${sin.color}55)`
@@ -73,7 +67,7 @@ function Portal({ sin, onSelect, x, y }) {
     <motion.g
       initial={{ opacity: 0, scale: 0.8 }}
       animate={{ opacity: 1, scale: 1 }}
-      transition={{ duration: 0.6 }}
+      transition={{ duration: 0.6, delay: sin.idx * 0.3 }}
       whileHover={hover}
       onClick={() => onSelect && onSelect(sin.key)}
       style={{ cursor: 'pointer' }}
@@ -83,11 +77,10 @@ function Portal({ sin, onSelect, x, y }) {
       <text x={sin.x} y={sin.y + 78} textAnchor="middle" fontSize="10" fill="#9aa" opacity="0.8">{sin.notes}</text>
       <motion.circle cx={sin.x} cy={sin.y} r={38} fill="none" stroke={sin.color} strokeWidth="1" style={{
         filter: `drop-shadow(0 0 10px ${sin.color}aa)`,
-        transform: 'rotate(0deg)'
       }} />
-      <text x={sin.x} y={sin.y + 100} textAnchor="middle" fontSize="11" fill={sin.color} opacity="0">
+      <motion.text x={sin.x} y={sin.y + 100} textAnchor="middle" fontSize="11" fill={sin.color} initial={{ opacity: 0 }} whileHover={{ opacity: 1 }}>
         <tspan>{sin.desc}</tspan>
-      </text>
+      </motion.text>
     </motion.g>
   )
 }
