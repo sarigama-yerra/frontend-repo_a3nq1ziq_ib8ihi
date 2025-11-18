@@ -12,62 +12,41 @@ function Grain() {
   )
 }
 
-function Embers({ count = 4, intensity = 0.9 }) {
-  const particles = useMemo(() => Array.from({ length: count }).map((_, i) => ({
+function ReactiveEmbers({ count = 24, mouse, velocity }) {
+  const items = useMemo(() => Array.from({ length: count }).map((_, i) => ({
     id: i,
-    left: 8 + (i * (84 / count)) + (i % 2 ? 6 : 0),
-    size: 3 + (i % 3) * 2,
-    delay: i * 0.55,
-  })), [count])
-  return (
-    <div className="pointer-events-none absolute inset-0">
-      {particles.map((p) => (
-        <motion.div
-          key={p.id}
-          className="absolute rounded-full"
-          style={{ left: `${p.left}%`, bottom: '6%' }}
-          initial={{ y: 0, opacity: 0 }}
-          animate={{ y: -160 * intensity, opacity: [0, 0.9, 0] }}
-          transition={{ duration: 7, repeat: Infinity, ease: 'easeInOut', delay: p.delay }}
-        >
-          <div
-            className="w-2 h-2"
-            style={{
-              width: p.size,
-              height: p.size,
-              background: 'radial-gradient(circle, rgba(196,30,58,0.9), rgba(196,30,58,0) 70%)',
-              filter: 'blur(0.5px) drop-shadow(0 0 10px rgba(196,30,58,0.5))',
-            }}
-          />
-        </motion.div>
-      ))}
-    </div>
-  )
-}
-
-function GoldParticles({ count = 24 }) {
-  const parts = useMemo(() => Array.from({ length: count }).map((_, i) => ({
-    id: i,
-    left: Math.random() * 100,
-    top: Math.random() * 100,
+    x: Math.random() * window.innerWidth,
+    y: window.innerHeight * (0.6 + Math.random() * 0.3),
     size: 1 + Math.random() * 2.5,
-    dur: 10 + Math.random() * 12,
-    delay: Math.random() * 4,
+    baseVy: -0.2 - Math.random() * 0.35,
   })), [count])
+
   return (
     <div className="pointer-events-none absolute inset-0">
-      {parts.map(p => (
-        <motion.div
-          key={p.id}
-          className="absolute rounded-full"
-          style={{ left: `${p.left}%`, top: `${p.top}%` }}
-          initial={{ y: 0, opacity: 0 }}
-          animate={{ y: [-10, 10, -10], opacity: [0, 0.8, 0.2] }}
-          transition={{ duration: p.dur, repeat: Infinity, ease: 'easeInOut', delay: p.delay }}
-        >
-          <div style={{ width: p.size, height: p.size, background: 'rgba(232,197,71,0.8)', filter: 'blur(1px) drop-shadow(0 0 6px rgba(232,197,71,0.3))' }} />
-        </motion.div>
-      ))}
+      {items.map(p => {
+        const dx = (mouse.x ?? -9999) - p.x
+        const dy = (mouse.y ?? -9999) - p.y
+        const dist = Math.sqrt(dx*dx + dy*dy)
+        const inRange = dist < 80
+        // Repulsion force falls off with distance
+        const force = inRange ? (1 - dist / 80) : 0
+        const dirX = inRange ? -dx / (dist || 1) : 0
+        const dirY = inRange ? -dy / (dist || 1) : 0
+        const speedMult = 1 + Math.min(1.8, Math.hypot(velocity.vx, velocity.vy) / 120)
+        const tx = p.x + dirX * force * 24 * speedMult
+        const ty = p.y + dirY * force * 24 * speedMult + p.baseVy * 60
+        return (
+          <motion.div
+            key={p.id}
+            className="absolute rounded-full"
+            animate={{ x: tx, y: ty, opacity: [0, 0.9, 0.2] }}
+            transition={{ duration: 0.6, ease: 'easeOut' }}
+            style={{ left: 0, top: 0 }}
+          >
+            <div style={{ width: p.size, height: p.size, background: 'rgba(232,197,71,0.8)', filter: 'blur(1px) drop-shadow(0 0 6px rgba(232,197,71,0.3))', borderRadius: '50%' }} />
+          </motion.div>
+        )
+      })}
     </div>
   )
 }
@@ -119,6 +98,21 @@ export default function LandingHero({ onDone }) {
 
   const [showPrompt, setShowPrompt] = useState(false)
   const [allowBleed, setAllowBleed] = useState(false)
+
+  // Mouse tracking (shared)
+  const [mouse, setMouse] = useState({ x: -9999, y: -9999 })
+  const [mouseS2, setMouseS2] = useState({ x: -9999, y: -9999 })
+  const velRef = useRef({ vx: 0, vy: 0, px: -9999, py: -9999, t: 0 })
+  useEffect(() => {
+    velRef.current.t = performance.now()
+  }, [])
+  const updateVelocity = (x, y) => {
+    const now = performance.now()
+    const dt = Math.max(16, now - velRef.current.t)
+    const vx = (x - velRef.current.px) / dt * 1000
+    const vy = (y - velRef.current.py) / dt * 1000
+    velRef.current = { vx: isFinite(vx) ? vx : 0, vy: isFinite(vy) ? vy : 0, px: x, py: y, t: now }
+  }
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'auto' })
@@ -201,6 +195,7 @@ export default function LandingHero({ onDone }) {
   const [splitting, setSplitting] = useState(false)
   const [showDivider, setShowDivider] = useState(false)
   const [showQuote, setShowQuote] = useState(false)
+  const [cutDuration, setCutDuration] = useState(1.0)
 
   const controlsLeft = useAnimation()
   const controlsRight = useAnimation()
@@ -237,7 +232,13 @@ export default function LandingHero({ onDone }) {
     // 2.0-2.5s: Horizontal red line (top)
     const t1 = setTimeout(() => setShowTopLine(true), 2000)
     // 2.5-3.5s: Rotate to vertical + drop
-    const t2 = setTimeout(() => { setShowTopLine(false); setCutting(true) }, 2500)
+    const t2 = setTimeout(() => {
+      setShowTopLine(false)
+      // set cut speed based on current vertical velocity (mouse influence)
+      const speedFactor = 1 + Math.min(0.7, Math.abs(velRef.current.vy) / 800)
+      setCutDuration(1.0 / speedFactor)
+      setCutting(true)
+    }, 2500)
     // 3.5-4.5s: Split halves
     const t3 = setTimeout(() => {
       setCutting(false)
@@ -250,7 +251,6 @@ export default function LandingHero({ onDone }) {
     // 5.0-6.0s: Quote fade in
     const t5 = setTimeout(() => setShowQuote(true), 5000)
 
-    // Safety cleanup (not strictly necessary in one-shot sequence)
     const cleaners = [t1, t2, t3, t4, t5]
     return () => cleaners.forEach(clearTimeout)
   }
@@ -267,6 +267,16 @@ export default function LandingHero({ onDone }) {
   const s3Opacity = useTransform(s3Progress, [0, 0.9, 1], [1, 0.7, 0])
   const colsOpacity = useTransform(s3Progress, [0, 0.8, 1], [0.05, 0.15, 0.2])
 
+  // Extra offsets during splitting based on cursor
+  const extraSplitX = (() => {
+    const elem = s2Ref.current
+    if (!elem) return 0
+    const rect = elem.getBoundingClientRect()
+    const cx = rect.left + rect.width / 2
+    const dx = (mouseS2.x - cx) / rect.width // -0.5..0.5
+    return Math.max(-50, Math.min(50, dx * 200)) // ±50 max
+  })()
+
   return (
     <div ref={heroRef} className="relative w-full text-white bg-black">
       {/* Top-right action */}
@@ -280,27 +290,101 @@ export default function LandingHero({ onDone }) {
       </div>
 
       {/* Screen 1 */}
-      <section ref={s1Ref} className="relative min-h-screen flex items-center justify-center overflow-hidden bg-black">
+      <section
+        ref={s1Ref}
+        className="relative min-h-screen flex items-center justify-center overflow-hidden bg-black"
+        onMouseMove={(e) => {
+          const rect = s1Ref.current.getBoundingClientRect()
+          const x = e.clientX - rect.left
+          const y = e.clientY - rect.top
+          setMouse({ x: e.clientX, y: e.clientY })
+          updateVelocity(e.clientX, e.clientY)
+        }}
+      >
+        {/* Background spotlight following cursor (with trailing) */}
+        <motion.div
+          className="absolute inset-0"
+          animate={{
+            background: `radial-gradient(300px 300px at ${mouse.x}px ${mouse.y}px, rgba(40,40,40,0.75), rgba(0,0,0,0.85) 60%)`
+          }}
+          transition={{ duration: 0.8, ease: 'easeOut' }}
+          style={{ mixBlendMode: 'screen' }}
+        />
+
+        {/* Damask pattern reveal around cursor */}
+        <div
+          className="pointer-events-none absolute inset-0 opacity-[0.03]"
+          style={{ backgroundImage: 'url(https://images.unsplash.com/photo-1760764541302-e3955fbc6b2b?ixid=M3w3OTkxMTl8MHwxfHNlYXJjaHwxfHxjZXJhbWljJTIwcG90dGVyeSUyMGhhbmRtYWRlfGVufDB8MHx8fDE3NjM0MTE5NzJ8MA&ixlib=rb-4.1.0&w=1600&auto=format&fit=crop&q=80)', backgroundSize: 'cover', backgroundPosition: 'center' }}
+        />
+        <motion.div
+          className="pointer-events-none absolute inset-0"
+          style={{ backgroundImage: 'url(https://images.unsplash.com/photo-1760764541302-e3955fbc6b2b?ixid=M3w3OTkxMTl8MHwxfHNlYXJjaHwxfHxjZXJhbWljJTIwcG90dGVyeSUyMGhhbmRtYWRlfGVufDB8MHx8fDE3NjM0MTE5NzJ8MA&ixlib=rb-4.1.0&w=1600&auto=format&fit=crop&q=80)', backgroundSize: 'cover', backgroundPosition: 'center' }}
+          animate={{
+            WebkitMaskImage: `radial-gradient(80px 80px at ${mouse.x}px ${mouse.y}px, rgba(255,255,255,0.8), rgba(255,255,255,0) 70%)`,
+            maskImage: `radial-gradient(80px 80px at ${mouse.x}px ${mouse.y}px, rgba(255,255,255,0.8), rgba(255,255,255,0) 70%)`,
+            opacity: 0.08
+          }}
+          transition={{ duration: 0.12 }}
+        />
+
+        {/* Vignette that subtly shifts opposite to cursor */}
+        <motion.div
+          className="pointer-events-none absolute inset-0"
+          animate={{ x: (window.innerWidth/2 - (mouse.x||0)) * 0.02, y: (window.innerHeight/2 - (mouse.y||0)) * 0.02 }}
+          transition={{ duration: 0.4 }}
+          style={{ background: 'radial-gradient(120% 120% at 50% 50%, rgba(0,0,0,0) 55%, rgba(0,0,0,0.4) 80%, rgba(0,0,0,0.7))' }}
+        />
+
         <Grain />
-        <Embers count={4} intensity={0.8} />
-        <motion.h1
-          className="text-center font-[Cinzel] leading-tight px-6 font-semibold"
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          style={{ fontSize: 'clamp(40px, 7vw, 72px)', textShadow: '0 0 24px rgba(196,30,58,0.25), 0 0 6px rgba(196,30,58,0.15)' }}
-        >
-          <Typewriter text="Ready to indulge in sin?" />
-        </motion.h1>
+        <ReactiveEmbers count={28} mouse={mouse} velocity={velRef.current} />
+
+        {/* Title with per-letter proximity effects */}
+        <ProximityTitle mouse={mouse} text="Ready to indulge in sin?" />
+
         {showPrompt && <ScrollPrompt label="Descend" onClick={() => scrollTo(s2Ref)} />}
       </section>
 
-      {/* Screen 2: Brand Reveal with strict sequence */}
-      <section ref={s2Ref} className="relative min-h-screen grid place-items-center overflow-hidden bg-black">
+      {/* Screen 2: Brand Reveal with strict sequence + mouse reactivity */}
+      <section
+        ref={s2Ref}
+        className="relative min-h-screen grid place-items-center overflow-hidden bg-black"
+        onMouseMove={(e) => {
+          const rect = s2Ref.current.getBoundingClientRect()
+          const x = e.clientX - rect.left
+          const y = e.clientY - rect.top
+          setMouseS2({ x: e.clientX, y: e.clientY })
+          updateVelocity(e.clientX, e.clientY)
+        }}
+      >
+        {/* Fog that parts near cursor */}
+        <motion.div className="pointer-events-none absolute inset-0" animate={{
+          WebkitMaskImage: `radial-gradient(140px 140px at ${mouseS2.x}px ${mouseS2.y}px, rgba(0,0,0,0), rgba(0,0,0,1) 60%)`,
+          maskImage: `radial-gradient(140px 140px at ${mouseS2.x}px ${mouseS2.y}px, rgba(0,0,0,0), rgba(0,0,0,1) 60%)`,
+        }} transition={{ duration: 0.2 }}>
+          <Smoke opacity={0.18} />
+        </motion.div>
+
+        {/* Subtle arches moving counter to cursor */}
+        <motion.div className="pointer-events-none absolute inset-0 opacity-20" animate={{ x: (window.innerWidth/2 - (mouseS2.x||0)) * 0.03, y: (window.innerHeight/2 - (mouseS2.y||0)) * 0.02 }} transition={{ duration: 0.3 }}>
+          <svg className="absolute inset-x-0 top-[15%] mx-auto" width="100%" height="200" viewBox="0 0 1200 200" preserveAspectRatio="none">
+            <path d="M0,200 Q600,-40 1200,200" stroke="#1f1f1f" strokeWidth="2" fill="none" />
+            <path d="M0,200 Q600,0 1200,200" stroke="#161616" strokeWidth="2" fill="none" />
+          </svg>
+        </motion.div>
+
+        {/* Red glow that follows mouse during cutting/splitting */}
+        <AnimatePresence>
+          {(cutting || splitting) && (
+            <motion.div key="s2glow" className="pointer-events-none absolute inset-0" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+              <motion.div className="absolute" animate={{ left: (mouseS2.x||-9999) - 150, top: (mouseS2.y||-9999) - 150 }} transition={{ duration: 0.15 }} style={{ width: 300, height: 300, borderRadius: '50%', background: 'radial-gradient(circle, rgba(196,30,58,0.24), rgba(196,30,58,0) 60%)', filter: 'blur(10px)' }} />
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         <Grain />
-        <Embers count={3} intensity={0.6} />
         <motion.div style={{ y: driftY, opacity: fadeOut }} className="relative w-full max-w-[1200px] mx-auto px-6 text-center select-none">
           <div className="relative inline-block">
-            {/* Full wordmark (fades in 0-2s) */}
+            {/* Full wordmark (fades in 0-2s) with pre-split parallax */}
             <AnimatePresence>
               {showWordmark && (
                 <motion.div
@@ -311,7 +395,7 @@ export default function LandingHero({ onDone }) {
                   transition={{ duration: 1.5, ease: 'easeInOut' }}
                   className="relative z-[1]"
                 >
-                  <Wordmark />
+                  <Wordmark mouse={mouseS2} active={!cutting && !splitting && !showDivider} />
                 </motion.div>
               )}
             </AnimatePresence>
@@ -323,15 +407,19 @@ export default function LandingHero({ onDone }) {
                 animate={{ opacity: splitting || showDivider || showQuote ? 1 : 0 }}
                 transition={{ duration: 0.12 }}
               >
-                <motion.div className="absolute inset-0 overflow-hidden" style={{ clipPath: 'inset(0 50% 0 0)' }} animate={controlsLeft}>
-                  <div className="absolute inset-0 flex justify-center">
-                    <Wordmark />
-                  </div>
+                <motion.div className="absolute inset-0 overflow-hidden" style={{ clipPath: 'inset(0 50% 0 0)' }}>
+                  <motion.div animate={controlsLeft} className="absolute inset-0">
+                    <motion.div style={{ x: splitting ? extraSplitX * -1 : 0 }} className="absolute inset-0 flex justify-center">
+                      <Wordmark />
+                    </motion.div>
+                  </motion.div>
                 </motion.div>
-                <motion.div className="absolute inset-0 overflow-hidden" style={{ clipPath: 'inset(0 0 0 50%)' }} animate={controlsRight}>
-                  <div className="absolute inset-0 flex justify-center">
-                    <Wordmark />
-                  </div>
+                <motion.div className="absolute inset-0 overflow-hidden" style={{ clipPath: 'inset(0 0 0 50%)' }}>
+                  <motion.div animate={controlsRight} className="absolute inset-0">
+                    <motion.div style={{ x: splitting ? extraSplitX : 0 }} className="absolute inset-0 flex justify-center">
+                      <Wordmark />
+                    </motion.div>
+                  </motion.div>
                 </motion.div>
               </motion.div>
             </div>
@@ -351,18 +439,36 @@ export default function LandingHero({ onDone }) {
               )}
             </AnimatePresence>
 
-            {/* Vertical cutting line (2.5-3.5s) */}
+            {/* Vertical cutting line (2.5-3.5s) with variable speed + drip towards cursor */}
             <AnimatePresence>
               {cutting && (
-                <motion.div
-                  key="cut"
-                  className="absolute left-1/2 -translate-x-1/2 top-0 w-[2px] z-[3]"
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: '100%', opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 1.0, ease: 'easeInOut' }}
-                  style={{ background: 'linear-gradient(to bottom, rgba(139,0,0,0), rgba(139,0,0,0.95), rgba(139,0,0,0))', boxShadow: '0 0 22px rgba(139,0,0,0.65)' }}
-                />
+                <motion.div key="cutwrap" className="absolute left-1/2 -translate-x-1/2 top-0 w-[2px] z-[3]">
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: '100%', opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: cutDuration, ease: 'easeInOut' }}
+                    style={{ background: 'linear-gradient(to bottom, rgba(139,0,0,0), rgba(139,0,0,0.95), rgba(139,0,0,0))', boxShadow: '0 0 22px rgba(139,0,0,0.65)' }}
+                  />
+                  {/* Drip */}
+                  <motion.div
+                    className="absolute -left-1.5 top-0 w-3 h-3 rounded-full"
+                    style={{ background: 'radial-gradient(circle, #8B0000, rgba(139,0,0,0.2))', filter: 'drop-shadow(0 0 8px rgba(139,0,0,0.6))' }}
+                    initial={{ opacity: 0, y: -10, x: 0 }}
+                    animate={{
+                      opacity: 1,
+                      y: '100%',
+                      x: ((() => {
+                        const rect = s2Ref.current?.getBoundingClientRect()
+                        if (!rect) return 0
+                        const centerX = rect.left + rect.width / 2
+                        const dx = Math.max(-60, Math.min(60, (mouseS2.x - centerX) * 0.08))
+                        return dx
+                      })()),
+                    }}
+                    transition={{ duration: Math.max(0.6, cutDuration), ease: 'easeIn' }}
+                  />
+                </motion.div>
               )}
             </AnimatePresence>
 
@@ -382,13 +488,18 @@ export default function LandingHero({ onDone }) {
             </AnimatePresence>
           </div>
 
-          {/* Quote below divider (5.0-6.0s) */}
+          {/* Quote below divider (5.0-6.0s) with subtle tilt towards cursor */}
           <AnimatePresence>
             {showQuote && (
               <motion.div key="copy" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 1.0 }} className="mt-10">
-                <p className="text-zinc-100 italic font-semibold" style={{ fontSize: 'clamp(32px, 3.5vw, 36px)' }}>
+                <motion.p
+                  className="text-zinc-100 italic font-semibold"
+                  style={{ fontSize: 'clamp(32px, 3.5vw, 36px)' }}
+                  animate={{ rotateX: ((mouseS2.y - (window.innerHeight/2)) * -0.01), rotateY: ((mouseS2.x - (window.innerWidth/2)) * 0.01) }}
+                  transition={{ duration: 0.2 }}
+                >
                   Seven scents. Seven temptations. Unapologetically yours.
-                </p>
+                </motion.p>
               </motion.div>
             )}
           </AnimatePresence>
@@ -568,45 +679,87 @@ export default function LandingHero({ onDone }) {
   )
 }
 
-function Typewriter({ text }) {
-  const [shown, setShown] = useState('')
-  const [cursor, setCursor] = useState(true)
-  useEffect(() => {
-    let i = 0
-    const tick = () => {
-      setShown(text.slice(0, i + 1))
-      i++
-      if (i < text.length) setTimeout(tick, 55)
-    }
-    const start = setTimeout(tick, 650)
-    const blink = setInterval(() => setCursor(v => !v), 600)
-    return () => { clearTimeout(start); clearInterval(blink) }
-  }, [text])
+function ProximityTitle({ text, mouse }) {
+  const letters = text.split('')
+  const center = { x: window.innerWidth / 2, y: window.innerHeight / 2 }
   return (
-    <span className="font-semibold">
-      {shown}
-      <span className="inline-block w-[0.6ch]">{cursor ? '_' : ' '}</span>
-    </span>
+    <div className="text-center font-[Cinzel] leading-tight px-6 font-semibold select-none">
+      {letters.map((ch, i) => {
+        if (ch === ' ') return <span key={i} style={{ display: 'inline-block', width: '0.5ch' }} />
+        const dx = (mouse.x - center.x)
+        const dy = (mouse.y - center.y)
+        const d = Math.hypot(dx, dy)
+        const near = Math.max(0, 1 - d / 100)
+        const glow = near * 0.8
+        const tiltX = (dy / 100) * -2 * near
+        const tiltY = (dx / 100) * 2 * near
+        return (
+          <motion.span
+            key={i}
+            style={{ display: 'inline-block', fontSize: 'clamp(40px, 7vw, 72px)', color: `rgba(255,255,255,${0.9 - near*0.1})`, textShadow: `0 0 ${12 + glow*12}px rgba(196,30,58,${0.4 + glow*0.6})` }}
+            animate={{ rotateX: tiltX, rotateY: tiltY }}
+            transition={{ duration: 0.2 }}
+          >
+            {ch}
+          </motion.span>
+        )
+      })}
+    </div>
   )
 }
 
-// ELANOR wordmark in Cinzel with soft white and letterpress feel
-function Wordmark() {
+function GoldParticles({ count = 24 }) {
+  const parts = useMemo(() => Array.from({ length: count }).map((_, i) => ({
+    id: i,
+    left: Math.random() * 100,
+    top: Math.random() * 100,
+    size: 1 + Math.random() * 2.5,
+    dur: 10 + Math.random() * 12,
+    delay: Math.random() * 4,
+  })), [count])
+  return (
+    <div className="pointer-events-none absolute inset-0">
+      {parts.map(p => (
+        <motion.div
+          key={p.id}
+          className="absolute rounded-full"
+          style={{ left: `${p.left}%`, top: `${p.top}%` }}
+          initial={{ y: 0, opacity: 0 }}
+          animate={{ y: [-10, 10, -10], opacity: [0, 0.8, 0.2] }}
+          transition={{ duration: p.dur, repeat: Infinity, ease: 'easeInOut', delay: p.delay }}
+        >
+          <div style={{ width: p.size, height: p.size, background: 'rgba(232,197,71,0.8)', filter: 'blur(1px) drop-shadow(0 0 6px rgba(232,197,71,0.3))' }} />
+        </motion.div>
+      ))}
+    </div>
+  )
+}
+
+// ELANOR wordmark in Cinzel with soft white and letterpress feel + optional parallax
+function Wordmark({ mouse, active = false }) {
   const letters = 'ELANOR'.split('')
+  const center = { x: window.innerWidth / 2, y: window.innerHeight / 2 }
   return (
     <div className="font-[Cinzel] tracking-[0.12em] leading-none" style={{ fontSize: 'clamp(140px, 14vw, 180px)', color: '#F5F3F0' }}>
-      {letters.map((ch, i) => (
-        <span
-          key={i}
-          style={{
-            display: 'inline-block',
-            textShadow: '0 1px 0 rgba(0,0,0,0.6), 0 2px 6px rgba(0,0,0,0.45), 0 -1px 0 rgba(255,255,255,0.06)',
-            WebkitTextStroke: '0.3px rgba(0,0,0,0.35)'
-          }}
-        >
-          {ch}
-        </span>
-      ))}
+      {letters.map((ch, i) => {
+        const depth = active ? (i - letters.length/2) * 2 : 0
+        const px = active ? ((mouse?.x ?? center.x) - center.x) * 0.01 * depth : 0
+        const py = active ? ((mouse?.y ?? center.y) - center.y) * 0.006 * depth : 0
+        return (
+          <motion.span
+            key={i}
+            style={{
+              display: 'inline-block',
+              textShadow: '0 1px 0 rgba(0,0,0,0.6), 0 2px 6px rgba(0,0,0,0.45), 0 -1px 0 rgba(255,255,255,0.06)',
+              WebkitTextStroke: '0.3px rgba(0,0,0,0.35)'
+            }}
+            animate={{ x: px, y: py }}
+            transition={{ duration: 0.2 }}
+          >
+            {ch}
+          </motion.span>
+        )
+      })}
     </div>
   )
 }
