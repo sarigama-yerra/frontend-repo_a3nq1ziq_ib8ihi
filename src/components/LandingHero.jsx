@@ -1,24 +1,45 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { motion, AnimatePresence, useAnimation, useInView, useScroll, useTransform } from 'framer-motion'
+import { motion, AnimatePresence, useInView, useScroll, useTransform } from 'framer-motion'
 import { ChevronDown } from 'lucide-react'
 
 // Shared overlays
-function Grain() {
+function Grain({ opacity = 0.08 }) {
   return (
     <div
-      className="pointer-events-none absolute inset-0 opacity-[0.04] mix-blend-soft-light"
-      style={{ backgroundImage: 'url(https://images.unsplash.com/photo-1760764541302-e3955fbc6b2b?ixid=M3w3OTkxMTl8MHwxfHNlYXJjaHwxfHxjZXJhbWljJTIwcG90dGVyeSUyMGhhbmRtYWRlfGVufDB8MHx8fDE3NjM0MTE5NzJ8MA&ixlib=rb-4.1.0&w=1600&auto=format&fit=crop&q=80)' }}
+      className="pointer-events-none absolute inset-0 mix-blend-soft-light"
+      style={{ opacity, backgroundImage: 'url(https://images.unsplash.com/photo-1760764541302-e3955fbc6b2b?ixid=M3w3OTkxMTl8MHwxfHNlYXJjaHwxfHxjZXJhbWljJTIwcG90dGVyeSUyMGhhbmRtYWRlfGVufDB8MHx8fDE3NjM0MTE5NzJ8MA&ixlib=rb-4.1.0&w=1600&auto=format&fit=crop&q=80)' }}
     />
   )
 }
 
-// Simple upward embers used on Screen 6 and ambient effects
-function Embers({ count = 10, intensity = 1.0 }) {
+// Slow rotating light rays from above
+function LightRays() {
+  return (
+    <div className="pointer-events-none absolute inset-0">
+      <motion.div
+        className="absolute -top-1/3 left-1/2 -translate-x-1/2 w-[120%] h-[120%]"
+        style={{ background: 'conic-gradient(from 200deg, rgba(220,20,60,0.12), transparent 40%)', filter: 'blur(12px)' }}
+        animate={{ rotate: [0, 10, 0] }}
+        transition={{ duration: 16, repeat: Infinity, ease: 'easeInOut' }}
+      />
+      <motion.div
+        className="absolute -top-1/4 right-[-10%] w-[80%] h-[80%]"
+        style={{ background: 'conic-gradient(from 340deg, rgba(124,0,31,0.10), transparent 45%)', filter: 'blur(14px)' }}
+        animate={{ rotate: [0, -12, 0] }}
+        transition={{ duration: 18, repeat: Infinity, ease: 'easeInOut' }}
+      />
+    </div>
+  )
+}
+
+// Gold embers drifting upward
+function Embers({ count = 14, intensity = 1.0 }) {
   const particles = useMemo(() => Array.from({ length: count }).map((_, i) => ({
     id: i,
-    left: 8 + (i * (84 / count)) + (i % 2 ? 6 : 0),
-    size: 3 + (i % 3) * 2,
-    delay: i * 0.55,
+    left: 4 + Math.random() * 92,
+    size: 1.2 + Math.random() * 2.8,
+    delay: Math.random() * 2.2,
+    dur: 6.5 + Math.random() * 3.5,
   })), [count])
   return (
     <div className="pointer-events-none absolute inset-0">
@@ -26,20 +47,45 @@ function Embers({ count = 10, intensity = 1.0 }) {
         <motion.div
           key={p.id}
           className="absolute rounded-full"
-          style={{ left: `${p.left}%`, bottom: '6%' }}
+          style={{ left: `${p.left}%`, bottom: '-2%' }}
           initial={{ y: 0, opacity: 0 }}
-          animate={{ y: -160 * intensity, opacity: [0, 0.9, 0] }}
-          transition={{ duration: 7, repeat: Infinity, ease: 'easeInOut', delay: p.delay }}
+          animate={{ y: -180 * intensity, opacity: [0, 0.95, 0] }}
+          transition={{ duration: p.dur, repeat: Infinity, ease: 'easeInOut', delay: p.delay }}
         >
           <div
-            className="w-2 h-2"
             style={{
               width: p.size,
               height: p.size,
-              background: 'radial-gradient(circle, rgba(196,30,58,0.9), rgba(196,30,58,0) 70%)',
-              filter: 'blur(0.5px) drop-shadow(0 0 10px rgba(196,30,58,0.5))',
+              borderRadius: '50%',
+              background: 'rgba(232,197,71,0.95)',
+              filter: 'blur(0.6px) drop-shadow(0 0 10px rgba(232,197,71,0.45))',
             }}
           />
+        </motion.div>
+      ))}
+    </div>
+  )
+}
+
+// Red sparks flicker mid-field
+function RedSparks({ count = 12 }) {
+  const sparks = useMemo(() => Array.from({ length: count }).map((_, i) => ({
+    id: i,
+    left: Math.random() * 100,
+    top: 20 + Math.random() * 60,
+    size: 1 + Math.random() * 2,
+    delay: Math.random() * 1.8,
+    dur: 1 + Math.random() * 1.2,
+  })), [count])
+  return (
+    <div className="pointer-events-none absolute inset-0">
+      {sparks.map(s => (
+        <motion.div key={s.id} className="absolute" style={{ left: `${s.left}%`, top: `${s.top}%` }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: [0, 1, 0] }}
+          transition={{ duration: s.dur, repeat: Infinity, delay: s.delay }}
+        >
+          <div style={{ width: s.size, height: s.size, borderRadius: '50%', background: 'rgba(220,20,60,0.95)', filter: 'drop-shadow(0 0 8px rgba(220,20,60,0.6))' }} />
         </motion.div>
       ))}
     </div>
@@ -68,7 +114,7 @@ function Smoke({ opacity = 0.25, bottom = false }) {
 
 function ScrollPrompt({ label = 'Descend', onClick }) {
   return (
-    <div className="absolute bottom-8 left-0 right-0 flex flex-col items-center gap-2 text-zinc-400">
+    <div className="absolute bottom-8 left-0 right-0 flex flex-col items-center gap-2 text-zinc-300">
       <motion.div
         onClick={onClick}
         animate={{ y: [0, 6, 0] }}
@@ -82,14 +128,85 @@ function ScrollPrompt({ label = 'Descend', onClick }) {
   )
 }
 
+// Typewriter Intro Page
+function TypewriterIntro({ text, onRevealPrompt }) {
+  const [showCursor, setShowCursor] = useState(false)
+  const [shownCount, setShownCount] = useState(0)
+  const [promptReady, setPromptReady] = useState(false)
+
+  useEffect(() => {
+    const c1 = setTimeout(() => setShowCursor(true), 500)
+
+    let timer
+    const c2 = setTimeout(() => {
+      const step = () => {
+        setShownCount(n => {
+          if (n < text.length) return n + 1
+          return n
+        })
+        const next = 80 + Math.floor(Math.random() * 20)
+        timer = setTimeout(step, next)
+      }
+      step()
+    }, 1000)
+
+    return () => { clearTimeout(c1); clearTimeout(c2); if (timer) clearTimeout(timer) }
+  }, [text])
+
+  useEffect(() => {
+    if (shownCount === text.length && !promptReady) {
+      const t = setTimeout(() => {
+        setPromptReady(true)
+        onRevealPrompt && onRevealPrompt()
+      }, 1200)
+      return () => clearTimeout(t)
+    }
+  }, [shownCount, text.length, onRevealPrompt, promptReady])
+
+  const letters = text.split('')
+  return (
+    <div className="relative text-center">
+      <div className="font-[Cinzel] font-semibold leading-tight" style={{ fontSize: 'clamp(40px, 7vw, 72px)' }}>
+        {letters.map((ch, i) => (
+          <motion.span
+            key={i}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: i < shownCount ? 1 : 0 }}
+            transition={{ duration: 0.18 }}
+            style={{
+              display: 'inline-block',
+              letterSpacing: '0.02em',
+              color: '#FFF',
+              textShadow: i < shownCount ? `0 0 ${8 + i * 0.25}px rgba(196,30,58,${0.35 + Math.min(0.45, i / letters.length)})` : 'none',
+            }}
+          >
+            {ch === ' ' ? '\u00A0' : ch}
+          </motion.span>
+        ))}
+        {/* Cursor */}
+        <motion.span
+          initial={{ opacity: 0 }}
+          animate={{ opacity: showCursor ? [1, 0, 1] : 0 }}
+          transition={{ duration: 0.9, repeat: Infinity }}
+          className="inline-block"
+          style={{ width: '0.6ch', marginLeft: 2 }}
+        >
+          |
+        </motion.span>
+      </div>
+    </div>
+  )
+}
+
 export default function LandingHero({ onDone }) {
   const heroRef = useRef(null)
-  const s3Ref = useRef(null)
+  const s1Ref = useRef(null) // new intro page
   const s4Ref = useRef(null)
   const s5Ref = useRef(null)
   const s6Ref = useRef(null)
 
   const [allowBleed, setAllowBleed] = useState(false)
+  const [showPrompt, setShowPrompt] = useState(false)
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -101,13 +218,13 @@ export default function LandingHero({ onDone }) {
 
   const scrollTo = (ref) => ref?.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 
-  // Wheel step navigation within hero cluster (Screens 3-6 only)
+  // Wheel step navigation (Intro + Screens 4-6)
   const [isNavigating, setIsNavigating] = useState(false)
   useEffect(() => {
     const node = heroRef.current
     if (!node) return
 
-    const refs = [s3Ref, s4Ref, s5Ref, s6Ref]
+    const refs = [s1Ref, s4Ref, s5Ref, s6Ref]
     const getCurrentIndex = () => {
       const mid = (typeof window !== 'undefined' ? window.innerHeight : 800) / 2
       let best = 0
@@ -164,13 +281,6 @@ export default function LandingHero({ onDone }) {
 
   const s6InView = useInView(s6Ref, { amount: 0.6 })
 
-  // Screen 3 dynamics
-  const { scrollYProgress: s3Progress } = useScroll({ target: s3Ref, offset: ['start end', 'end start'] })
-  const s3Drift = useTransform(s3Progress, [0, 1], [0, -30])
-  const s3Blur = useTransform(s3Progress, [0, 0.8, 1], ['blur(0px)', 'blur(2px)', 'blur(6px)'])
-  const s3Opacity = useTransform(s3Progress, [0, 0.9, 1], [1, 0.7, 0])
-  const colsOpacity = useTransform(s3Progress, [0, 0.8, 1], [0.05, 0.15, 0.2])
-
   return (
     <div ref={heroRef} className="relative w-full text-white bg-black">
       {/* Top-right action */}
@@ -183,83 +293,41 @@ export default function LandingHero({ onDone }) {
         </button>
       </div>
 
-      {/* Screen 3 */}
-      <section ref={s3Ref} className="relative min-h-screen flex items-center justify-center overflow-hidden" style={{ background: 'linear-gradient(180deg, #0A0A0A 0%, #1A0B0F 100%)' }}>
-        {/* Marble texture */}
-        <div className="absolute inset-0 opacity-[0.08]" style={{ backgroundImage: 'url(https://images.unsplash.com/photo-1760764541302-e3955fbc6b2b?ixid=M3w3OTkxMTl8MHwxfHNlYXJjaHwxfHxjZXJhbWljJTIwcG90dGVyeSUyMGhhbmRtYWRlfGVufDB8MHx8fDE3NjM0MTE5NzJ8MA&ixlib=rb-4.1.0&w=1600&auto=format&fit=crop&q=80)', backgroundSize: 'cover', backgroundPosition: 'center' }} />
-        {/* Column silhouettes left/right */}
-        <motion.div className="absolute top-0 bottom-0 left-0 w-1/3" style={{ opacity: colsOpacity }}>
-          <div className="absolute inset-y-0 left-[-10%] w-[60%]" style={{ background: 'radial-gradient(40% 60% at 70% 50%, rgba(58,58,58,0.2), transparent 70%)' }} />
-        </motion.div>
-        <motion.div className="absolute top-0 bottom-0 right-0 w-1/3" style={{ opacity: colsOpacity }}>
-          <div className="absolute inset-y-0 right-[-10%] w-[60%]" style={{ background: 'radial-gradient(40% 60% at 30% 50%, rgba(58,58,58,0.2), transparent 70%)' }} />
-        </motion.div>
-        {/* Gold stardust */}
-        <GoldParticles count={28} />
+      {/* New Intro Page: Living void + auto typewriter */}
+      <section ref={s1Ref} className="relative min-h-screen flex items-center justify-center overflow-hidden">
+        {/* Living void background */}
+        <motion.div
+          className="absolute inset-0"
+          style={{ background: 'radial-gradient(60% 60% at 50% 40%, #18070C 0%, #0C0406 55%, #000 100%)' }}
+          animate={{ filter: ['brightness(0.95)', 'brightness(1.0)', 'brightness(0.95)'] }}
+          transition={{ duration: 10, repeat: Infinity, ease: 'easeInOut' }}
+        />
+        <motion.div
+          className="absolute inset-0"
+          style={{ background: 'radial-gradient(80% 80% at 50% 60%, rgba(80,0,30,0.15) 0%, rgba(0,0,0,0) 60%)' }}
+          animate={{ opacity: [0.25, 0.35, 0.25] }}
+          transition={{ duration: 12, repeat: Infinity, ease: 'easeInOut' }}
+        />
 
-        <motion.div style={{ y: s3Drift, filter: s3Blur, opacity: s3Opacity }} className="relative z-10 px-6 w-full max-w-5xl">
-          {/* Greek key border frame */}
-          <GreekFrame>
-            <div className="text-center py-10 md:py-14">
-              {/* Arete heading */}
-              <motion.h3
-                className="font-[Cinzel] font-bold tracking-[0.18em]"
-                style={{ color: '#D4AF37', fontSize: 'clamp(40px,6vw,64px)' }}
-                initial={{ opacity: 0, scale: 0.98 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.6, ease: 'easeOut' }}
-              >
-                Ἀρετή
-              </motion.h3>
-              <motion.p
-                className="font-[Cormorant_Garamond] italic"
-                style={{ color: '#E8E6E3', opacity: 0.8, fontSize: 'clamp(14px,3.5vw,18px)' }}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.4, duration: 0.6 }}
-              >
-                (Virtue through vice. Excellence through sin.)
-              </motion.p>
+        <LightRays />
+        <Embers count={18} intensity={1.2} />
+        <RedSparks count={16} />
+        <Grain opacity={0.12} />
 
-              {/* Ornamental separator */}
-              <OrnamentalSeparator />
+        {/* Center Typewriter */}
+        <div className="relative z-10 px-6 text-center">
+          <TypewriterIntro text="Ready to indulge in sin?" onRevealPrompt={() => setShowPrompt(true)} />
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 0.65 }}
+            transition={{ delay: 2.4, duration: 0.8 }}
+            className="mt-3 text-zinc-300/80 font-[Cormorant_Garamond] italic"
+          >
+            A confession written in crimson on the void.
+          </motion.p>
+        </div>
 
-              {/* Main statement lines with stagger */}
-              <motion.div
-                initial="hidden"
-                animate="show"
-                variants={{ hidden: {}, show: { transition: { staggerChildren: 0.3 } } }}
-                className="mt-8 space-y-6"
-              >
-                {[
-                  'The ancient Greeks understood: every virtue casts a shadow. WRATH is Ares unleashed. ENVY, the serpent coiled in Aphrodite\'s garden. LUST, Dionysus untamed.',
-                  'Seven fragrances. Seven philosophical truths. Each scent a confession written in amber, leather, and smoke.',
-                ].map((line, idx) => (
-                  <motion.p
-                    key={idx}
-                    variants={{ hidden: { opacity: 0, y: 8 }, show: { opacity: 1, y: 0 } }}
-                    className="font-[Cinzel]"
-                    style={{ color: '#F5F3F0', letterSpacing: '0.04em', lineHeight: 1.7, fontSize: 'clamp(24px,4.5vw,52px)' }}
-                  >
-                    {line}
-                  </motion.p>
-                ))}
-              </motion.div>
-
-              {/* Bottom italic quote */}
-              <motion.p
-                className="mt-10 font-[Cormorant_Garamond] italic"
-                style={{ color: '#C9A961', fontSize: 'clamp(20px,4vw,32px)' }}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 2.6, duration: 0.6 }}
-              >
-                Luxury for those who choose honesty over decorum.
-              </motion.p>
-            </div>
-          </GreekFrame>
-        </motion.div>
-        <ScrollPrompt onClick={() => scrollTo(s4Ref)} />
+        {showPrompt && <ScrollPrompt label="Descend" onClick={() => scrollTo(s4Ref)} />}
       </section>
 
       {/* Screen 4 */}
@@ -355,33 +423,6 @@ export default function LandingHero({ onDone }) {
   )
 }
 
-function GoldParticles({ count = 24 }) {
-  const parts = useMemo(() => Array.from({ length: count }).map((_, i) => ({
-    id: i,
-    left: Math.random() * 100,
-    top: Math.random() * 100,
-    size: 1 + Math.random() * 2.5,
-    dur: 10 + Math.random() * 12,
-    delay: Math.random() * 4,
-  })), [count])
-  return (
-    <div className="pointer-events-none absolute inset-0">
-      {parts.map(p => (
-        <motion.div
-          key={p.id}
-          className="absolute rounded-full"
-          style={{ left: `${p.left}%`, top: `${p.top}%` }}
-          initial={{ y: 0, opacity: 0 }}
-          animate={{ y: [-10, 10, -10], opacity: [0, 0.8, 0.2] }}
-          transition={{ duration: p.dur, repeat: Infinity, ease: 'easeInOut', delay: p.delay }}
-        >
-          <div style={{ width: p.size, height: p.size, background: 'rgba(232,197,71,0.8)', filter: 'blur(1px) drop-shadow(0 0 6px rgba(232,197,71,0.3))' }} />
-        </motion.div>
-      ))}
-    </div>
-  )
-}
-
 function IconChalice() {
   return (
     <svg width="64" height="64" viewBox="0 0 64 64" className="text-[#C41E3A]">
@@ -462,35 +503,6 @@ function GreekFrame({ children }) {
         />
       </motion.svg>
       <div className="relative">{children}</div>
-    </div>
-  )
-}
-
-function OrnamentalSeparator() {
-  return (
-    <div className="mt-6 flex items-center justify-center gap-3">
-      <motion.div
-        className="h-px"
-        style={{ background: '#B8A078', width: 80, opacity: 0.9 }}
-        initial={{ scaleX: 0 }}
-        animate={{ scaleX: 1 }}
-        transition={{ duration: 0.8 }}
-      />
-      <motion.span
-        style={{ color: '#D4AF37' }}
-        initial={{ opacity: 0, rotate: -10 }}
-        animate={{ opacity: 1, rotate: 0 }}
-        transition={{ delay: 0.2, duration: 0.6 }}
-      >
-        Ω
-      </motion.span>
-      <motion.div
-        className="h-px"
-        style={{ background: '#B8A078', width: 80, opacity: 0.9 }}
-        initial={{ scaleX: 0 }}
-        animate={{ scaleX: 1 }}
-        transition={{ duration: 0.8 }}
-      />
     </div>
   )
 }
