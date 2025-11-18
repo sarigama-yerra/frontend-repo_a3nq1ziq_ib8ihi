@@ -12,12 +12,16 @@ function Grain() {
   )
 }
 
-export default function LandingHero({ onDone }) {
+export default function LandingHero({ onDone, heroImageUrl }) {
   const fullText = 'Ready to indulge in sin?'
   const [text, setText] = useState('')
   const [phase, setPhase] = useState('typing') // typing | pause | reveal | done
   const [showCursor, setShowCursor] = useState(true)
   const controls = useAnimation()
+
+  // Optional override via env var
+  const envHero = import.meta.env.VITE_HERO_IMAGE_URL
+  const heroSrc = heroImageUrl || envHero || null
 
   // Blink cursor
   useEffect(() => {
@@ -86,7 +90,7 @@ export default function LandingHero({ onDone }) {
         </AnimatePresence>
       </div>
 
-      {/* Ink reveal skull - masked by animated radial */}
+      {/* Ink reveal visual - masked by animated radial */}
       <motion.div
         initial="closed"
         animate={controls}
@@ -101,7 +105,7 @@ export default function LandingHero({ onDone }) {
         style={{ background: 'radial-gradient(ellipse at center, rgba(0,0,0,0) 0%, rgba(0,0,0,0) 60%, rgba(0,0,0,0.25) 100%)' }}
       >
         <div className="absolute inset-0 grid place-items-center">
-          <SkullIllustration />
+          {heroSrc ? <HeroImage src={heroSrc} /> : <SkullIllustration />}
         </div>
       </motion.div>
 
@@ -117,6 +121,22 @@ export default function LandingHero({ onDone }) {
         </motion.div>
       </div>
     </section>
+  )
+}
+
+function HeroImage({ src }) {
+  // Supports SVG/PNG/WebP. SVG remains crisp; raster scales responsively.
+  return (
+    <img
+      src={src}
+      alt="ELANOR mark"
+      className="max-w-[70vw] w-[560px] md:w-[640px] h-auto select-none drop-shadow-[0_0_50px_rgba(139,0,0,0.35)]"
+      style={{ filter: 'saturate(0.9) contrast(1.02)' }}
+      onError={(e) => {
+        // Fallback to vector if URL fails
+        e.currentTarget.style.display = 'none'
+      }}
+    />
   )
 }
 
